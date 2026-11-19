@@ -1,0 +1,43 @@
+meta {
+  name: Sync One Dataset
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/v1/sync/dataset/{{datasetId}}
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{CONTROL_API_TOKEN}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "operationMode": "sync_only"
+  }
+}
+
+script:post-response {
+  if (res.getStatus() === 202) {
+    bru.setVar("runId", res.getBody().runId);
+  }
+}
+
+tests {
+  test("sync-only run accepted", function () {
+    expect(res.getStatus()).to.equal(202);
+    expect(res.getBody().mode).to.equal("sync_only");
+    expect(res.getBody().runId).to.be.a("string");
+  });
+}
+
+docs {
+  Set datasetId in the Local environment to an existing source dataset ID.
+  Fetches RDF from the configured source and synchronizes it to the dispatcher.
+  Saves runId for Get Sync Run. Unchanged delivered datasets are skipped.
+  To synchronize all datasets, remove /dataset/{{datasetId}} from the URL.
+}

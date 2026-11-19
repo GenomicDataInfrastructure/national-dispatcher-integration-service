@@ -1,0 +1,43 @@
+meta {
+  name: Run Sync Only
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/sync
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{CONTROL_API_TOKEN}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "operationMode": "sync_only"
+  }
+}
+
+script:post-response {
+  if (res.getStatus() === 202) {
+    bru.setVar("runId", res.getBody().runId);
+  }
+}
+
+tests {
+  test("sync-only run accepted", function () {
+    expect(res.getStatus()).to.equal(202);
+    expect(res.getBody().mode).to.equal("sync_only");
+    expect(res.getBody().runId).to.be.a("string");
+  });
+}
+
+docs {
+  Select the Local environment and set its CONTROL_API_TOKEN secret in Bruno.
+  Synchronizes all datasets from the configured default source
+  without validation. This performs dispatcher writes and reconciles deletions.
+  Saves runId automatically; use Get Sync Run to check progress.
+}

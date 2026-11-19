@@ -1,0 +1,8 @@
+# DEMONSTRATION ONLY: these are not Health DCAT-AP Release 8 rules.
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix dcat: <http://www.w3.org/ns/dcat#> .
+@prefix dct: <http://purl.org/dc/terms/> .
+@prefix ex: <https://example.org/> .
+ex:DatasetShape a sh:NodeShape ;
+  sh:targetClass dcat:Dataset ;
+  sh:property [ sh:path dct:title ; sh:minCount 1 ; sh:message "Dataset requires a title (demonstration rule)" ] .
