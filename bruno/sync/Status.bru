@@ -10,10 +10,6 @@ get {
   auth: none
 }
 
-vars:pre-request {
-  runId: 054731a5-9719-4285-bf59-0db8836f62ac
-}
-
 tests {
   test("sync-only run status returned", function () {
     expect(res.getStatus()).to.equal(200);
