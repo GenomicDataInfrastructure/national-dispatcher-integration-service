@@ -80,8 +80,7 @@ statuses such as `delivered` remain separate. A completed run can include failed
 datasets, as shown by `datasetsFailed` and its reports. An explicit
 `?mode=validate_only` requests validation only; the legacy `?mode=validate` alias
 still works. Omitting the query follows `OPERATION_MODE`; the legacy
-`?mode=deliver` alias also follows that configuration. Historical `deliver` runs
-are labelled `legacy_delivery` because their exact validation mode is unknown.
+`?mode=deliver` alias also follows that configuration.
 A second run is rejected while one is active.
 Configure the default metadata source with `DATASET_CATALOGUE_RDF_URL`.
 
@@ -183,7 +182,9 @@ Scheduling uses `SYNC_ENABLED` and `SYNC_SCHEDULE`.
 - A PostgreSQL advisory lock serializes synchronization runs.
 - Dataset identity is the full URI of each embedded `dcat:Dataset` in the catalogue.
 - Create intent is persisted before the dispatcher call. A timeout/network failure leaves `uncertain`, preventing an automatic duplicate create.
-- Once a dispatcher `databaseId` is received it is persisted as `pending`; retries resume tracking and verification instead of posting again.
+- Once a dispatcher `databaseId` is received it is persisted; subsequent delivery attempts resume tracking and verification instead of posting again.
+- While tracking, the delivery status follows Domibus: `READY_TO_SEND`, `SEND_ENQUEUED`, `SEND_IN_PROGRESS`, `WAITING_FOR_RECEIPT`, `SEND_ATTEMPT_FAILED`, and `WAITING_FOR_RETRY` are shown as observed and polling continues. Domibus manages retries for the two retry statuses; this service does not submit another send while tracking that message.
+- `ACKNOWLEDGED` and `ACKNOWLEDGED_WITH_WARNING` proceed to Central Platform verification. After verification succeeds, the local status becomes `delivered`. `SEND_FAILURE`, `NOT_FOUND`, and `DELETED` are retained as terminal Domibus statuses and do not trigger an automatic resend. Missing Domibus status is treated as not yet available, so tracking continues until a status appears or the verification timeout is reached.
 - Successful verification stores the Central Platform object ID used for later update/delete calls.
 - A delete is removed from local state only after successful verification or dispatcher HTTP 404.
 
@@ -203,8 +204,11 @@ npm run validate
 
 Open the [`bruno`](./bruno) directory as a Bruno collection and select the
 `Local` environment for health, readiness, and source synchronization requests.
-Optional direct-delivery and National Dispatcher collections are kept separately
-from the repository; see `bruno/README.md` for their archive location.
+Create it by copying `bruno/environments/Local.example.bru` to
+`bruno/environments/Local.bru` and filling in the placeholders.
+Direct National Dispatcher and dataset-delivery collections are kept in the
+sibling `../national-dispatcher-integration-service-operator-collections/`
+directory. The repository includes only a placeholder Bruno environment sample.
 
 ## Validation severity policy
 

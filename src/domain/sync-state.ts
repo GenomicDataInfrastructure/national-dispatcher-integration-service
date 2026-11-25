@@ -10,6 +10,7 @@ export type SyncState = {
   dispatcherDatabaseId: string | null;
   centralPlatformObjectId: string | null;
   correlationId: string | null;
+  domibusMessageId: string | null;
   operation: DeliveryOperation | null;
   status: DeliveryStatus;
   retryCount: number;

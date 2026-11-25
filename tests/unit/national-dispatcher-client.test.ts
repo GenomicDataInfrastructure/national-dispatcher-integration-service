@@ -107,7 +107,12 @@ describe("NationalDispatcherClient", () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ domibusMessageId: ["corr-1"] })),
+        new Response(
+          JSON.stringify({
+            domibusMessageId: ["corr-1"],
+            domibusStatus: "ACKNOWLEDGED",
+          }),
+        ),
       )
       .mockResolvedValueOnce(
         new Response(
@@ -127,6 +132,59 @@ describe("NationalDispatcherClient", () => {
       "central-1",
     );
   });
+
+  it("polls through missing and retrying Domibus statuses until acknowledged", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ domibusMessageId: ["corr-1"] })),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            domibusMessageId: ["corr-1"],
+            domibusStatus: "WAITING_FOR_RETRY",
+          }),
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            domibusMessageId: ["corr-1"],
+            domibusStatus: "ACKNOWLEDGED_WITH_WARNING",
+          }),
+        ),
+      );
+    const client = new NationalDispatcherClient(config, fetchMock as any);
+    const statuses: string[] = [];
+
+    await expect(
+      client.track("db-1", async (status) => {
+        statuses.push(status);
+      }),
+    ).resolves.toBe("corr-1");
+    expect(statuses).toEqual([
+      "WAITING_FOR_RETRY",
+      "ACKNOWLEDGED_WITH_WARNING",
+    ]);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it.each(["SEND_FAILURE", "NOT_FOUND", "DELETED"] as const)(
+    "stops tracking on terminal Domibus status %s",
+    async (domibusStatus) => {
+      const client = new NationalDispatcherClient(
+        config,
+        vi.fn(
+          async () => new Response(JSON.stringify({ domibusStatus })),
+        ) as any,
+      );
+
+      await expect(client.track("db-1")).rejects.toMatchObject({
+        domibusStatus,
+      });
+    },
+  );
 
   it("surfaces Central Platform business error details", async () => {
     const fetchMock = vi.fn(

@@ -15,7 +15,13 @@ function node(tag, text, className) {
   return n;
 }
 function badge(status) {
-  const kind = ["failed", "uncertain"].includes(status)
+  const kind = [
+    "failed",
+    "uncertain",
+    "SEND_FAILURE",
+    "NOT_FOUND",
+    "DELETED",
+  ].includes(status)
     ? "bad"
     : ["delivered", "completed"].includes(status)
       ? "good"
@@ -224,6 +230,7 @@ function showDataset(state, operationMode, release8Profile) {
       ["Central Platform ID", state.centralPlatformObjectId],
       ["Dispatcher database ID", state.dispatcherDatabaseId],
       ["Correlation ID", state.correlationId],
+      ["Domibus message ID", state.domibusMessageId],
       ["Delivered RDF checksum", state.checksum],
     ]),
   );

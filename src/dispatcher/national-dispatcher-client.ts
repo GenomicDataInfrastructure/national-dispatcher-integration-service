@@ -2,9 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { AppConfig } from "../config/config.js";
-import type { DeliveryOperation } from "../domain/delivery-status.js";
+import type {
+  DeliveryOperation,
+  DomibusStatus,
+} from "../domain/delivery-status.js";
 
 export class DispatcherError extends Error {
+  domibusStatus?: DomibusStatus;
   deliveryContext?: {
     datasetId: string;
     status: string;
@@ -15,7 +19,12 @@ export class DispatcherError extends Error {
   constructor(
     message: string,
     public readonly kind:
-      "validation" | "timeout" | "network" | "http" | "protocol",
+      | "validation"
+      | "send_failure"
+      | "timeout"
+      | "network"
+      | "http"
+      | "protocol",
     public readonly statusCode = 502,
   ) {
     super(message);
@@ -35,6 +44,7 @@ type Verification = {
 };
 type TrackingResponse = {
   domibusMessageId?: string | string[];
+  domibusStatus?: DomibusStatus;
   dispatcherStatus?: string;
   validationStatus?: string;
   validationInfo?: {
@@ -114,7 +124,10 @@ export class NationalDispatcherClient {
     return { databaseId: body?.databaseId ?? null, alreadyGone: false };
   }
 
-  async track(databaseId: string): Promise<string> {
+  async track(
+    databaseId: string,
+    onStatus?: (status: DomibusStatus) => Promise<void>,
+  ): Promise<string> {
     const deadline = Date.now() + this.config.verificationTimeoutMs;
     const url = `${this.config.baseUrl}/national-dispatcher/trackOutgoingMessage/byDbId/${encodeURIComponent(databaseId)}`;
     do {
@@ -133,16 +146,35 @@ export class NationalDispatcherClient {
           422,
         );
       }
-      if (body.dispatcherStatus === "FAILED") {
-        throw new DispatcherError(
-          "National Dispatcher failed to dispatch the metadata",
-          "http",
+      if (body.domibusStatus) await onStatus?.(body.domibusStatus);
+      if (body.domibusStatus === "SEND_FAILURE") {
+        const error = new DispatcherError(
+          "Domibus message reached terminal status SEND_FAILURE",
+          "send_failure",
         );
+        error.domibusStatus = body.domibusStatus;
+        throw error;
+      }
+      if (
+        body.domibusStatus === "NOT_FOUND" ||
+        body.domibusStatus === "DELETED"
+      ) {
+        const error = new DispatcherError(
+          `Domibus message tracking returned terminal status ${body.domibusStatus}`,
+          "protocol",
+        );
+        error.domibusStatus = body.domibusStatus;
+        throw error;
       }
       const correlationId = Array.isArray(body.domibusMessageId)
         ? body.domibusMessageId[0]
         : body.domibusMessageId;
-      if (correlationId) return correlationId;
+      if (
+        correlationId &&
+        (body.domibusStatus === "ACKNOWLEDGED" ||
+          body.domibusStatus === "ACKNOWLEDGED_WITH_WARNING")
+      )
+        return correlationId;
       await sleep(this.config.pollIntervalMs);
     } while (Date.now() < deadline);
     throw new DispatcherError(

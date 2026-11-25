@@ -4,17 +4,18 @@
 # Bruno collection
 
 This collection contains health, readiness, and source-to-dispatcher
-synchronization requests. The optional dataset-delivery and direct National
-Dispatcher collections are archived outside the repository at
+synchronization requests, plus a read-only direct National Dispatcher lookup
+by Domibus message ID. Other direct National Dispatcher and dataset-delivery
+requests are maintained outside this repository at
 `../national-dispatcher-integration-service-operator-collections/`.
 
 ## Test source-to-dispatcher synchronization
 
 Configure the server's `DISPATCHER_URL`, `DISPATCHER_API_KEY`, source connection,
 PostgreSQL connection and `CONTROL_API_TOKEN`, then start it with `npm run dev`.
-Open this collection in Bruno, select `Local`, and set `datasetId` to an existing
-dataset ID in the configured source. Set the `CONTROL_API_TOKEN` secret in the
-Local environment.
+Open this collection in Bruno, copy `environments/Local.example.bru` to
+`environments/Local.bru`, and replace the placeholders with local values. Set
+the `CONTROL_API_TOKEN` and `DISPATCHER_API_KEY` secret values in Bruno.
 
 1. Send **Health** and **Readiness**.
 2. Send **sync / Sync One Dataset**. Its JSON body selects `sync_only`, without

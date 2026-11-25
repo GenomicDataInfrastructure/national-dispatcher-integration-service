@@ -6,6 +6,10 @@ import {
   DispatcherError,
   NationalDispatcherClient,
 } from "../dispatcher/national-dispatcher-client.js";
+import type {
+  DeliveryStatus,
+  DomibusStatus,
+} from "../domain/delivery-status.js";
 import type { SyncState } from "../domain/sync-state.js";
 import { SyncStateRepository } from "../persistence/postgres/sync-state-repository.js";
 
@@ -17,6 +21,22 @@ export type DeliveryResult = {
 };
 const checksum = (rdf: string) =>
   createHash("sha256").update(rdf).digest("hex");
+const isDomibusStatus = (
+  status: DeliveryStatus | undefined,
+): status is DomibusStatus =>
+  [
+    "READY_TO_SEND",
+    "SEND_ENQUEUED",
+    "SEND_IN_PROGRESS",
+    "WAITING_FOR_RECEIPT",
+    "ACKNOWLEDGED",
+    "ACKNOWLEDGED_WITH_WARNING",
+    "SEND_ATTEMPT_FAILED",
+    "WAITING_FOR_RETRY",
+    "SEND_FAILURE",
+    "NOT_FOUND",
+    "DELETED",
+  ].includes(status as DomibusStatus);
 
 export class DatasetDeliveryService {
   constructor(
@@ -41,14 +61,28 @@ export class DatasetDeliveryService {
     if (existing?.checksum === digest && existing.status === "delivered")
       return existing;
     if (existing?.dispatcherDatabaseId && !existing.centralPlatformObjectId) {
+      if (existing.status === "SEND_FAILURE") {
+        const retryable = await repo.save(datasetId, {
+          dispatcherDatabaseId: null,
+          correlationId: null,
+          domibusMessageId: null,
+          operation: "create",
+          status: "failed",
+          lastError: null,
+        });
+        return this.createLocked(repo, datasetId, rdf, digest, retryable);
+      }
       try {
         return await this.resolve(repo, existing, "create");
       } catch (error) {
+        const latest = await repo.get(datasetId);
         const state = await this.recordFailure(
           repo,
           datasetId,
           error,
           "create",
+          false,
+          latest?.status,
         );
         this.throwWithDeliveryContext(error, state);
       }
@@ -65,15 +99,9 @@ export class DatasetDeliveryService {
       operation: "create",
       status: "creating",
     });
+    let databaseId: string;
     try {
-      const databaseId = await this.dispatcher.create(rdf);
-      const pending = await repo.save(datasetId, {
-        checksum: digest,
-        dispatcherDatabaseId: databaseId,
-        operation: "create",
-        status: "pending",
-      });
-      return await this.resolve(repo, pending, "create");
+      databaseId = await this.dispatcher.create(rdf);
     } catch (error) {
       const state = await this.recordFailure(
         repo,
@@ -81,6 +109,26 @@ export class DatasetDeliveryService {
         error,
         "create",
         true,
+      );
+      this.throwWithDeliveryContext(error, state);
+    }
+    const pending = await repo.save(datasetId, {
+      checksum: digest,
+      dispatcherDatabaseId: databaseId,
+      operation: "create",
+      status: "pending",
+    });
+    try {
+      return await this.resolve(repo, pending, "create");
+    } catch (error) {
+      const latest = await repo.get(datasetId);
+      const state = await this.recordFailure(
+        repo,
+        datasetId,
+        error,
+        "create",
+        false,
+        latest?.status,
       );
       this.throwWithDeliveryContext(error, state);
     }
@@ -198,6 +246,17 @@ export class DatasetDeliveryService {
         "Dataset create has not produced a Central Platform object ID",
       );
     if (existing.operation === "update" && existing.dispatcherDatabaseId) {
+      if (existing.status === "SEND_FAILURE") {
+        const retryable = await repo.save(existing.datasetId, {
+          dispatcherDatabaseId: null,
+          correlationId: null,
+          domibusMessageId: null,
+          operation: "update",
+          status: "delivered",
+          lastError: null,
+        });
+        return this.updateLocked(repo, retryable, rdf, digest);
+      }
       let resolved: SyncState;
       try {
         resolved = await this.resolve(repo, existing, "update");
@@ -257,13 +316,22 @@ export class DatasetDeliveryService {
       throw new DeliveryConflictError(
         "No dispatcher database ID is available for verification",
       );
-    const correlationId =
-      state.correlationId ??
-      (await this.dispatcher.track(state.dispatcherDatabaseId));
+    let correlationId = state.correlationId;
+    let acknowledgedStatus: DomibusStatus | undefined;
+    if (!correlationId) {
+      correlationId = await this.dispatcher.track(
+        state.dispatcherDatabaseId,
+        async (status: DomibusStatus) => {
+          acknowledgedStatus = status;
+          await repo.save(state.datasetId, { operation, status });
+        },
+      );
+    }
     await repo.save(state.datasetId, {
       correlationId,
+      domibusMessageId: correlationId,
       operation,
-      status: "pending",
+      status: acknowledgedStatus ?? state.status,
     });
     const objectId = await this.dispatcher.verify(correlationId, operation);
     return repo.save(state.datasetId, {
@@ -283,12 +351,19 @@ export class DatasetDeliveryService {
     error: unknown,
     operation: "create" | "update" | "delete",
     uncertain = false,
+    currentStatus?: DeliveryStatus,
   ): Promise<SyncState> {
     const message =
       error instanceof Error ? error.message : "Unknown delivery error";
     return repo.save(datasetId, {
       operation,
-      status: uncertain ? "uncertain" : "failed",
+      status: uncertain
+        ? "uncertain"
+        : isDomibusStatus(currentStatus)
+          ? currentStatus
+          : error instanceof DispatcherError && error.domibusStatus
+            ? error.domibusStatus
+            : "failed",
       lastError: message,
       incrementRetry: true,
     });

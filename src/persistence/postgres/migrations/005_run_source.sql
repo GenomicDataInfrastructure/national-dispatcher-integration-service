@@ -1,3 +1,0 @@
--- SPDX-FileCopyrightText: 2026 PNED G.I.E.
--- SPDX-License-Identifier: Apache-2.0
-ALTER TABLE sync_runs ADD COLUMN source_system TEXT NOT NULL DEFAULT 'userportal';

@@ -29,7 +29,12 @@ function setup(state: Record<string, unknown> | null = null) {
     create: vi.fn(async () => "db-1"),
     update: vi.fn(async () => "db-2"),
     delete: vi.fn(async () => ({ databaseId: "db-3", alreadyGone: false })),
-    track: vi.fn(async (id: string) => `corr-${id}`),
+    track: vi.fn(
+      async (id: string, onStatus?: (status: string) => Promise<void>) => {
+        await onStatus?.("ACKNOWLEDGED");
+        return `corr-${id}`;
+      },
+    ),
     verify: vi.fn(async () => "central-1"),
   };
   return {
@@ -45,7 +50,7 @@ describe("DatasetDeliveryService", () => {
     const result = await service.create("dataset-1", "<rdf />");
     expect(result.status).toBe("delivered");
     expect(result.centralPlatformObjectId).toBe("central-1");
-    expect(dispatcher.track).toHaveBeenCalledWith("db-1");
+    expect(dispatcher.track).toHaveBeenCalledWith("db-1", expect.any(Function));
   });
   it("skips unchanged delivered metadata", async () => {
     const digest =
@@ -69,7 +74,52 @@ describe("DatasetDeliveryService", () => {
     });
     await service.create("dataset-1", "new");
     expect(dispatcher.create).not.toHaveBeenCalled();
-    expect(dispatcher.track).toHaveBeenCalledWith("db-existing");
+    expect(dispatcher.track).toHaveBeenCalledWith(
+      "db-existing",
+      expect.any(Function),
+    );
+  });
+  it("keeps the last Domibus status when tracking a create times out", async () => {
+    const { service, dispatcher, repo } = setup({
+      datasetId: "dataset-1",
+      checksum: "x",
+      dispatcherDatabaseId: "db-existing",
+      centralPlatformObjectId: null,
+      correlationId: null,
+      status: "pending",
+    });
+    dispatcher.track.mockImplementationOnce(
+      async (_id: string, onStatus: (status: string) => Promise<void>) => {
+        await onStatus("WAITING_FOR_RETRY");
+        throw new DispatcherError("Tracking timed out", "timeout", 504);
+      },
+    );
+
+    await expect(service.create("dataset-1", "new")).rejects.toMatchObject({
+      deliveryContext: expect.objectContaining({ status: "WAITING_FOR_RETRY" }),
+    });
+    expect(await repo.get("dataset-1")).toMatchObject({
+      status: "WAITING_FOR_RETRY",
+      lastError: "Tracking timed out",
+    });
+  });
+  it("submits a fresh create after the previous Domibus message failed", async () => {
+    const { service, dispatcher } = setup({
+      datasetId: "dataset-1",
+      checksum: "x",
+      dispatcherDatabaseId: "db-failed",
+      domibusMessageId: "corr-failed",
+      centralPlatformObjectId: null,
+      correlationId: "corr-failed",
+      status: "SEND_FAILURE",
+      operation: "create",
+    });
+
+    const result = await service.create("dataset-1", "new");
+
+    expect(dispatcher.create).toHaveBeenCalledOnce();
+    expect(dispatcher.track).toHaveBeenCalledWith("db-1", expect.any(Function));
+    expect(result.status).toBe("delivered");
   });
   it("adds persisted tracking identifiers to dispatcher failures", async () => {
     const { service, dispatcher } = setup({
@@ -103,6 +153,24 @@ describe("DatasetDeliveryService", () => {
     await service.update("dataset-1", "new");
     expect(dispatcher.update).toHaveBeenCalledWith("central-1", "new");
   });
+  it("submits a fresh update after the previous Domibus message failed", async () => {
+    const { service, dispatcher } = setup({
+      datasetId: "dataset-1",
+      checksum: "old",
+      centralPlatformObjectId: "central-1",
+      dispatcherDatabaseId: "db-failed",
+      domibusMessageId: "corr-failed",
+      correlationId: "corr-failed",
+      operation: "update",
+      status: "SEND_FAILURE",
+    });
+
+    const result = await service.update("dataset-1", "new");
+
+    expect(dispatcher.update).toHaveBeenCalledWith("central-1", "new");
+    expect(dispatcher.track).toHaveBeenCalledWith("db-2", expect.any(Function));
+    expect(result.status).toBe("delivered");
+  });
   it("deletes and verifies metadata", async () => {
     const { service, dispatcher, repo } = setup({
       datasetId: "dataset-1",
@@ -125,7 +193,10 @@ describe("DatasetDeliveryService", () => {
     });
     await service.update("dataset-1", "new");
     expect(dispatcher.update).not.toHaveBeenCalled();
-    expect(dispatcher.track).toHaveBeenCalledWith("db-update");
+    expect(dispatcher.track).toHaveBeenCalledWith(
+      "db-update",
+      expect.any(Function),
+    );
   });
   it("resumes a pending delete without submitting a duplicate", async () => {
     const { service, dispatcher, repo } = setup({
@@ -137,7 +208,10 @@ describe("DatasetDeliveryService", () => {
     });
     await service.delete("dataset-1");
     expect(dispatcher.delete).not.toHaveBeenCalled();
-    expect(dispatcher.track).toHaveBeenCalledWith("db-delete");
+    expect(dispatcher.track).toHaveBeenCalledWith(
+      "db-delete",
+      expect.any(Function),
+    );
     expect(repo.remove).toHaveBeenCalledWith("dataset-1");
   });
 });
