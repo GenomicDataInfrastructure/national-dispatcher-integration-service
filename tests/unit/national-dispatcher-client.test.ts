@@ -170,6 +170,38 @@ describe("NationalDispatcherClient", () => {
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
+  it("reports each Domibus status only when it changes", async () => {
+    const waiting = () =>
+      new Response(
+        JSON.stringify({
+          domibusMessageId: ["corr-1"],
+          domibusStatus: "WAITING_FOR_RECEIPT",
+        }),
+      );
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(waiting())
+      .mockResolvedValueOnce(waiting())
+      .mockResolvedValueOnce(waiting())
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            domibusMessageId: ["corr-1"],
+            domibusStatus: "ACKNOWLEDGED",
+          }),
+        ),
+      );
+    const client = new NationalDispatcherClient(config, fetchMock as any);
+    const statuses: string[] = [];
+
+    await client.track("db-1", async (status) => {
+      statuses.push(status);
+    });
+
+    expect(statuses).toEqual(["WAITING_FOR_RECEIPT", "ACKNOWLEDGED"]);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+  });
+
   it.each(["SEND_FAILURE", "NOT_FOUND", "DELETED"] as const)(
     "stops tracking on terminal Domibus status %s",
     async (domibusStatus) => {

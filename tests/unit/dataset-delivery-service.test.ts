@@ -214,6 +214,95 @@ describe("DatasetDeliveryService", () => {
     );
     expect(repo.remove).toHaveBeenCalledWith("dataset-1");
   });
+  it("records a failure, not ACKNOWLEDGED, when verification fails after acknowledgement", async () => {
+    const { service, dispatcher, repo } = setup();
+    dispatcher.verify.mockRejectedValueOnce(
+      new DispatcherError("Central Platform rejected create", "http"),
+    );
+
+    await expect(service.create("dataset-1", "new")).rejects.toThrow();
+    expect(await repo.get("dataset-1")).toMatchObject({
+      status: "failed",
+      lastError: "Central Platform rejected create",
+    });
+  });
+  it("never marks a failed update delivered before it is resent", async () => {
+    const { service, dispatcher, repo } = setup({
+      datasetId: "dataset-1",
+      checksum: "new-checksum",
+      centralPlatformObjectId: "central-1",
+      dispatcherDatabaseId: "db-failed",
+      correlationId: "corr-failed",
+      operation: "update",
+      status: "SEND_FAILURE",
+    });
+    dispatcher.update.mockRejectedValueOnce(
+      new DispatcherError("Dispatcher unavailable", "network"),
+    );
+
+    await expect(service.update("dataset-1", "new")).rejects.toThrow();
+    const statuses = repo.save.mock.calls.map(
+      ([, update]: any) => update.status,
+    );
+    expect(statuses).not.toContain("delivered");
+    expect(await repo.get("dataset-1")).toMatchObject({ status: "failed" });
+  });
+  it.each(["NOT_FOUND", "DELETED"] as const)(
+    "submits a fresh create after Domibus reported %s",
+    async (status) => {
+      const { service, dispatcher } = setup({
+        datasetId: "dataset-1",
+        checksum: "x",
+        dispatcherDatabaseId: "db-lost",
+        centralPlatformObjectId: null,
+        correlationId: null,
+        operation: "create",
+        status,
+      });
+
+      const result = await service.create("dataset-1", "new");
+
+      expect(dispatcher.create).toHaveBeenCalledOnce();
+      expect(dispatcher.track).not.toHaveBeenCalledWith(
+        "db-lost",
+        expect.any(Function),
+      );
+      expect(result.status).toBe("delivered");
+    },
+  );
+  it("submits a fresh delete after the previous Domibus message failed", async () => {
+    const { service, dispatcher, repo } = setup({
+      datasetId: "dataset-1",
+      centralPlatformObjectId: "central-1",
+      dispatcherDatabaseId: "db-failed",
+      correlationId: null,
+      operation: "delete",
+      status: "SEND_FAILURE",
+    });
+
+    await expect(service.delete("dataset-1")).resolves.toEqual({
+      deleted: true,
+    });
+    expect(dispatcher.delete).toHaveBeenCalledWith("central-1");
+    expect(dispatcher.track).toHaveBeenCalledWith("db-3", expect.any(Function));
+    expect(repo.remove).toHaveBeenCalledWith("dataset-1");
+  });
+  it("clears the previous Domibus message ID when a new delivery starts", async () => {
+    const { service, repo } = setup({
+      datasetId: "dataset-1",
+      checksum: "old",
+      centralPlatformObjectId: "central-1",
+      domibusMessageId: "corr-previous",
+      status: "delivered",
+    });
+
+    await service.update("dataset-1", "new");
+
+    expect(repo.save.mock.calls[0][1]).toMatchObject({
+      status: "updating",
+      domibusMessageId: null,
+    });
+  });
 });
 
 it.each(["create", "update"] as const)(

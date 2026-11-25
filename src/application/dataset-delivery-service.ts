@@ -6,9 +6,10 @@ import {
   DispatcherError,
   NationalDispatcherClient,
 } from "../dispatcher/national-dispatcher-client.js";
-import type {
-  DeliveryStatus,
-  DomibusStatus,
+import {
+  isInFlightDomibusStatus,
+  isTerminalDomibusStatus,
+  type DomibusStatus,
 } from "../domain/delivery-status.js";
 import type { SyncState } from "../domain/sync-state.js";
 import { SyncStateRepository } from "../persistence/postgres/sync-state-repository.js";
@@ -21,22 +22,6 @@ export type DeliveryResult = {
 };
 const checksum = (rdf: string) =>
   createHash("sha256").update(rdf).digest("hex");
-const isDomibusStatus = (
-  status: DeliveryStatus | undefined,
-): status is DomibusStatus =>
-  [
-    "READY_TO_SEND",
-    "SEND_ENQUEUED",
-    "SEND_IN_PROGRESS",
-    "WAITING_FOR_RECEIPT",
-    "ACKNOWLEDGED",
-    "ACKNOWLEDGED_WITH_WARNING",
-    "SEND_ATTEMPT_FAILED",
-    "WAITING_FOR_RETRY",
-    "SEND_FAILURE",
-    "NOT_FOUND",
-    "DELETED",
-  ].includes(status as DomibusStatus);
 
 export class DatasetDeliveryService {
   constructor(
@@ -61,7 +46,7 @@ export class DatasetDeliveryService {
     if (existing?.checksum === digest && existing.status === "delivered")
       return existing;
     if (existing?.dispatcherDatabaseId && !existing.centralPlatformObjectId) {
-      if (existing.status === "SEND_FAILURE") {
+      if (isTerminalDomibusStatus(existing.status)) {
         const retryable = await repo.save(datasetId, {
           dispatcherDatabaseId: null,
           correlationId: null,
@@ -75,14 +60,11 @@ export class DatasetDeliveryService {
       try {
         return await this.resolve(repo, existing, "create");
       } catch (error) {
-        const latest = await repo.get(datasetId);
         const state = await this.recordFailure(
           repo,
           datasetId,
           error,
           "create",
-          false,
-          latest?.status,
         );
         this.throwWithDeliveryContext(error, state);
       }
@@ -96,6 +78,7 @@ export class DatasetDeliveryService {
 
     await repo.save(datasetId, {
       checksum: digest,
+      domibusMessageId: null,
       operation: "create",
       status: "creating",
     });
@@ -121,15 +104,7 @@ export class DatasetDeliveryService {
     try {
       return await this.resolve(repo, pending, "create");
     } catch (error) {
-      const latest = await repo.get(datasetId);
-      const state = await this.recordFailure(
-        repo,
-        datasetId,
-        error,
-        "create",
-        false,
-        latest?.status,
-      );
+      const state = await this.recordFailure(repo, datasetId, error, "create");
       this.throwWithDeliveryContext(error, state);
     }
   }
@@ -166,8 +141,21 @@ export class DatasetDeliveryService {
 
   delete(datasetId: string): Promise<{ deleted: boolean }> {
     return this.repository.withDatasetLock(datasetId, async (repo) => {
-      const existing = await repo.get(datasetId);
+      let existing = await repo.get(datasetId);
       if (!existing) return { deleted: true };
+      if (
+        existing.operation === "delete" &&
+        existing.dispatcherDatabaseId &&
+        isTerminalDomibusStatus(existing.status)
+      )
+        existing = await repo.save(datasetId, {
+          dispatcherDatabaseId: null,
+          correlationId: null,
+          domibusMessageId: null,
+          operation: "delete",
+          status: "failed",
+          lastError: null,
+        });
       if (existing.operation === "delete" && existing.dispatcherDatabaseId) {
         try {
           await this.resolve(repo, existing, "delete");
@@ -194,7 +182,11 @@ export class DatasetDeliveryService {
         throw new DeliveryConflictError(
           "Dataset has no verified Central Platform object ID",
         );
-      await repo.save(datasetId, { operation: "delete", status: "deleting" });
+      await repo.save(datasetId, {
+        domibusMessageId: null,
+        operation: "delete",
+        status: "deleting",
+      });
       try {
         const result = await this.dispatcher.delete(
           existing.centralPlatformObjectId,
@@ -246,13 +238,15 @@ export class DatasetDeliveryService {
         "Dataset create has not produced a Central Platform object ID",
       );
     if (existing.operation === "update" && existing.dispatcherDatabaseId) {
-      if (existing.status === "SEND_FAILURE") {
+      if (isTerminalDomibusStatus(existing.status)) {
+        // Never mark the row delivered here: a crash before the resend must
+        // not let the unchanged checksum skip this dataset on later syncs.
         const retryable = await repo.save(existing.datasetId, {
           dispatcherDatabaseId: null,
           correlationId: null,
           domibusMessageId: null,
           operation: "update",
-          status: "delivered",
+          status: "failed",
           lastError: null,
         });
         return this.updateLocked(repo, retryable, rdf, digest);
@@ -273,6 +267,7 @@ export class DatasetDeliveryService {
       return this.updateLocked(repo, resolved, rdf, digest);
     }
     await repo.save(existing.datasetId, {
+      domibusMessageId: null,
       operation: "update",
       status: "updating",
     });
@@ -351,16 +346,19 @@ export class DatasetDeliveryService {
     error: unknown,
     operation: "create" | "update" | "delete",
     uncertain = false,
-    currentStatus?: DeliveryStatus,
   ): Promise<SyncState> {
     const message =
       error instanceof Error ? error.message : "Unknown delivery error";
+    // Keep an in-flight Domibus status (e.g. WAITING_FOR_RETRY after a
+    // tracking timeout) so the next run resumes tracking. Anything else,
+    // including errors after ACKNOWLEDGED, is recorded as a failure.
+    const current = uncertain ? undefined : (await repo.get(datasetId))?.status;
     return repo.save(datasetId, {
       operation,
       status: uncertain
         ? "uncertain"
-        : isDomibusStatus(currentStatus)
-          ? currentStatus
+        : isInFlightDomibusStatus(current)
+          ? current
           : error instanceof DispatcherError && error.domibusStatus
             ? error.domibusStatus
             : "failed",

@@ -102,7 +102,7 @@ the process, so let active syncs finish before editing it.
 `npm start` runs the built application without watching. Stop an existing instance
 before starting `npm run dev` on the same port.
 
-The service creates the configured PostgreSQL schema and runs its idempotent migration at startup. For a containerized local PostgreSQL and service, use `docker compose up --build`.
+The service creates the configured PostgreSQL schema and applies any pending migrations at startup, recording each in `schema_migrations`. For a containerized local PostgreSQL and service, use `docker compose up --build`.
 Compose overrides `POSTGRES_URL` with the internal `postgres` service hostname. Set `COMPOSE_POSTGRES_URL` only when Compose should connect to a different database.
 
 HDAB and GDI deployments should use separate PostgreSQL users/databases or schemas. Grant each runtime user access only to its configured schema.

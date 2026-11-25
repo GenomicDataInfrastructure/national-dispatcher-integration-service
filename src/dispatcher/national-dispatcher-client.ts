@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { AppConfig } from "../config/config.js";
-import type {
-  DeliveryOperation,
-  DomibusStatus,
+import {
+  isTerminalDomibusStatus,
+  type DeliveryOperation,
+  type DomibusStatus,
 } from "../domain/delivery-status.js";
 
 export class DispatcherError extends Error {
@@ -130,6 +131,7 @@ export class NationalDispatcherClient {
   ): Promise<string> {
     const deadline = Date.now() + this.config.verificationTimeoutMs;
     const url = `${this.config.baseUrl}/national-dispatcher/trackOutgoingMessage/byDbId/${encodeURIComponent(databaseId)}`;
+    let lastStatus: DomibusStatus | undefined;
     do {
       const body = await this.json<TrackingResponse>(
         await this.request("GET", url),
@@ -146,24 +148,19 @@ export class NationalDispatcherClient {
           422,
         );
       }
-      if (body.domibusStatus) await onStatus?.(body.domibusStatus);
-      if (body.domibusStatus === "SEND_FAILURE") {
-        const error = new DispatcherError(
-          "Domibus message reached terminal status SEND_FAILURE",
-          "send_failure",
-        );
-        error.domibusStatus = body.domibusStatus;
-        throw error;
+      const domibusStatus = body.domibusStatus;
+      if (domibusStatus && domibusStatus !== lastStatus) {
+        lastStatus = domibusStatus;
+        await onStatus?.(domibusStatus);
       }
-      if (
-        body.domibusStatus === "NOT_FOUND" ||
-        body.domibusStatus === "DELETED"
-      ) {
+      if (isTerminalDomibusStatus(domibusStatus)) {
         const error = new DispatcherError(
-          `Domibus message tracking returned terminal status ${body.domibusStatus}`,
-          "protocol",
+          domibusStatus === "SEND_FAILURE"
+            ? "Domibus message reached terminal status SEND_FAILURE"
+            : `Domibus message tracking returned terminal status ${domibusStatus}`,
+          domibusStatus === "SEND_FAILURE" ? "send_failure" : "protocol",
         );
-        error.domibusStatus = body.domibusStatus;
+        error.domibusStatus = domibusStatus;
         throw error;
       }
       const correlationId = Array.isArray(body.domibusMessageId)
@@ -171,8 +168,8 @@ export class NationalDispatcherClient {
         : body.domibusMessageId;
       if (
         correlationId &&
-        (body.domibusStatus === "ACKNOWLEDGED" ||
-          body.domibusStatus === "ACKNOWLEDGED_WITH_WARNING")
+        (domibusStatus === "ACKNOWLEDGED" ||
+          domibusStatus === "ACKNOWLEDGED_WITH_WARNING")
       )
         return correlationId;
       await sleep(this.config.pollIntervalMs);
