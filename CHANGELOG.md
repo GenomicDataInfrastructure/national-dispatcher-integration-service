@@ -15,3 +15,8 @@ release; unreleased work is listed under `Unreleased`.
   offline HealthDCAT-AP Release 8 resources for development and testing.
 - Added Docker Compose setup, example configuration, Bruno requests, CI,
   contribution guidance, and automated security and dependency checks.
+- Sync runs count datasets whose Domibus message is still in flight (for
+  example `WAITING_FOR_RETRY`) when tracking stops in a new `datasetsInFlight`
+  counter instead of `datasetsFailed`; the dashboard shows them separately.
+- A tracking timeout or network error before Domibus reports a status keeps the
+  delivery `pending` instead of recording it as `failed`.

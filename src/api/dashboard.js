@@ -322,6 +322,14 @@ function showRun(run) {
           card.dataset.key,
         ),
       );
+    else if (report.deliveryStatus)
+      card.append(
+        fields([
+          ["Dataset ID", report.datasetId],
+          ["Delivery status", report.deliveryStatus],
+          ["Note", report.note],
+        ]),
+      );
     else
       card.append(
         fields([
@@ -342,7 +350,7 @@ function empty(body, cols, text) {
 function drawRuns(runs) {
   const body = el("runs");
   body.replaceChildren();
-  if (!runs.length) empty(body, 10, "No synchronization runs on this page.");
+  if (!runs.length) empty(body, 11, "No synchronization runs on this page.");
   for (const run of runs) {
     const row = node("tr");
     const identity = cell(row, date(run.startedAt));
@@ -373,6 +381,10 @@ function drawRuns(runs) {
     const status = cell(row, runBadge);
     if (run.datasetsFailed > 0)
       status.append(node("small", run.datasetsFailed + " dataset(s) failed"));
+    if (run.datasetsInFlight > 0)
+      status.append(
+        node("small", run.datasetsInFlight + " dataset(s) still in flight"),
+      );
     for (const key of [
       "datasetsSeen",
       "datasetsCreated",
@@ -380,8 +392,9 @@ function drawRuns(runs) {
       "datasetsSkipped",
       "datasetsDeleted",
       "datasetsFailed",
+      "datasetsInFlight",
     ])
-      cell(row, run[key]);
+      cell(row, run[key] ?? 0);
     cell(
       row,
       viewButton("View run", () => showRun(run)),

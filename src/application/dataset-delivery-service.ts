@@ -20,6 +20,28 @@ export type DeliveryResult = {
   state: SyncState;
   operation: "created" | "updated" | "skipped";
 };
+/**
+ * True when the message was handed to the dispatcher and Domibus may still
+ * deliver it: an in-flight Domibus status, or "pending" before Domibus has
+ * reported any status. The next run resumes tracking instead of resending.
+ */
+export const isAwaitingDomibus = (state: SyncState): boolean =>
+  Boolean(state.dispatcherDatabaseId) &&
+  (isInFlightDomibusStatus(state.status) || state.status === "pending");
+
+/**
+ * Keep the awaiting status when tracking stops for a transient reason, so a
+ * tracking timeout while Domibus retries is not recorded as a failure.
+ * Pending is kept only for timeout/network errors: other errors (e.g. RDF
+ * validation rejection) are real failures. Errors after ACKNOWLEDGED are
+ * failures because ACKNOWLEDGED is not an awaiting status.
+ */
+const keepsAwaitingStatus = (state: SyncState, error: unknown): boolean =>
+  isAwaitingDomibus(state) &&
+  (state.status !== "pending" ||
+    (error instanceof DispatcherError &&
+      (error.kind === "timeout" || error.kind === "network")));
+
 const checksum = (rdf: string) =>
   createHash("sha256").update(rdf).digest("hex");
 
@@ -349,16 +371,13 @@ export class DatasetDeliveryService {
   ): Promise<SyncState> {
     const message =
       error instanceof Error ? error.message : "Unknown delivery error";
-    // Keep an in-flight Domibus status (e.g. WAITING_FOR_RETRY after a
-    // tracking timeout) so the next run resumes tracking. Anything else,
-    // including errors after ACKNOWLEDGED, is recorded as a failure.
-    const current = uncertain ? undefined : (await repo.get(datasetId))?.status;
+    const current = uncertain ? null : await repo.get(datasetId);
     return repo.save(datasetId, {
       operation,
       status: uncertain
         ? "uncertain"
-        : isInFlightDomibusStatus(current)
-          ? current
+        : current && keepsAwaitingStatus(current, error)
+          ? current.status
           : error instanceof DispatcherError && error.domibusStatus
             ? error.domibusStatus
             : "failed",
@@ -374,6 +393,7 @@ export class DatasetDeliveryService {
         status: state.status,
         dispatcherDatabaseId: state.dispatcherDatabaseId,
         correlationId: state.correlationId,
+        inFlight: isAwaitingDomibus(state),
       };
     }
     throw error;

@@ -25,6 +25,7 @@ type RunRow = {
   datasets_skipped: number;
   datasets_deleted: number;
   datasets_failed: number;
+  datasets_in_flight: number;
   error: string | null;
 };
 
@@ -60,6 +61,7 @@ const map = (row: RunRow): SyncRun => ({
   datasetsSkipped: row.datasets_skipped,
   datasetsDeleted: row.datasets_deleted,
   datasetsFailed: row.datasets_failed,
+  datasetsInFlight: row.datasets_in_flight ?? 0,
   error: row.error,
 });
 
@@ -104,6 +106,7 @@ export type RunCounts = Pick<
   | "datasetsSkipped"
   | "datasetsDeleted"
   | "datasetsFailed"
+  | "datasetsInFlight"
 >;
 
 export class SyncRunRepository {
@@ -141,7 +144,7 @@ export class SyncRunRepository {
     reports: SyncRun["reports"] = [],
   ): Promise<void> {
     await this.pool.query(
-      `UPDATE "${this.schema}".sync_runs SET status=$2, completed_at=NOW(), datasets_seen=$3, datasets_created=$4, datasets_updated=$5, datasets_skipped=$6, datasets_deleted=$7, datasets_failed=$8, error=$9, reports=$10::jsonb WHERE run_id=$1`,
+      `UPDATE "${this.schema}".sync_runs SET status=$2, completed_at=NOW(), datasets_seen=$3, datasets_created=$4, datasets_updated=$5, datasets_skipped=$6, datasets_deleted=$7, datasets_failed=$8, datasets_in_flight=$9, error=$10, reports=$11::jsonb WHERE run_id=$1`,
       [
         runId,
         status,
@@ -151,6 +154,7 @@ export class SyncRunRepository {
         counts.datasetsSkipped,
         counts.datasetsDeleted,
         counts.datasetsFailed,
+        counts.datasetsInFlight,
         error,
         JSON.stringify(boundedReports(reports)),
       ],

@@ -73,7 +73,9 @@
         </div>
         <p class="note inset">
           Completed means processing finished; a completed run can contain
-          failed datasets. Counters are finalized when a run finishes.
+          failed datasets. In flight means Domibus is still delivering (for
+          example WAITING_FOR_RETRY); tracking resumes on the next run. Counters
+          are finalized when a run finishes.
         </p>
         <div class="table-wrap">
           <table>
@@ -88,12 +90,13 @@
                 <th>Skipped</th>
                 <th>Deleted</th>
                 <th>Failed</th>
+                <th>In flight</th>
                 <th>Details</th>
               </tr>
             </thead>
             <tbody id="runs">
               <tr>
-                <td colspan="10">Loading history…</td>
+                <td colspan="11">Loading history…</td>
               </tr>
             </tbody>
           </table>

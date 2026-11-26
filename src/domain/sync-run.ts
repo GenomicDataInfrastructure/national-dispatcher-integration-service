@@ -29,6 +29,9 @@ export type SyncRun = {
     report?: string;
     findings?: ValidationFinding[];
     error?: string;
+    /** Domibus status the delivery was left in when it is still in flight. */
+    deliveryStatus?: string;
+    note?: string;
   }>;
   runId: string;
   status: SyncRunStatus;
@@ -40,5 +43,7 @@ export type SyncRun = {
   datasetsSkipped: number;
   datasetsDeleted: number;
   datasetsFailed: number;
+  /** Datasets still awaiting Domibus delivery; tracking resumes next run. */
+  datasetsInFlight: number;
   error: string | null;
 };

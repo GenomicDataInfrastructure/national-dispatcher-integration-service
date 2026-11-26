@@ -77,7 +77,9 @@ Each POST returns `202`, a run ID, its actual operation `mode`
 (`validate_only`, `validate_and_sync`, or `sync_only`), and its processing `status`.
 Run statuses are `queued`, `running`, `completed`, or `failed`; dataset delivery
 statuses such as `delivered` remain separate. A completed run can include failed
-datasets, as shown by `datasetsFailed` and its reports. An explicit
+datasets, as shown by `datasetsFailed` and its reports. Datasets whose Domibus
+message is still in flight when tracking stops are counted in `datasetsInFlight`
+instead, with a report carrying `deliveryStatus` and a `note`. An explicit
 `?mode=validate_only` requests validation only; the legacy `?mode=validate` alias
 still works. Omitting the query follows `OPERATION_MODE`; the legacy
 `?mode=deliver` alias also follows that configuration.
@@ -184,7 +186,9 @@ Scheduling uses `SYNC_ENABLED` and `SYNC_SCHEDULE`.
 - Create intent is persisted before the dispatcher call. A timeout/network failure leaves `uncertain`, preventing an automatic duplicate create.
 - Once a dispatcher `databaseId` is received it is persisted; subsequent delivery attempts resume tracking and verification instead of posting again.
 - While tracking, the delivery status follows Domibus: `READY_TO_SEND`, `SEND_ENQUEUED`, `SEND_IN_PROGRESS`, `WAITING_FOR_RECEIPT`, `SEND_ATTEMPT_FAILED`, and `WAITING_FOR_RETRY` are shown as observed and polling continues. Domibus manages retries for the two retry statuses; this service does not submit another send while tracking that message.
-- `ACKNOWLEDGED` and `ACKNOWLEDGED_WITH_WARNING` proceed to Central Platform verification. After verification succeeds, the local status becomes `delivered`. `SEND_FAILURE`, `NOT_FOUND`, and `DELETED` are retained as terminal Domibus statuses and do not trigger an automatic resend. Missing Domibus status is treated as not yet available, so tracking continues until a status appears or the verification timeout is reached.
+- If tracking times out (`DISPATCHER_VERIFICATION_TIMEOUT_MS`) while the message is still in flight, the delivery keeps its Domibus status (or `pending` if Domibus has not reported one yet, after a timeout or network error) instead of becoming `failed`. The run counts the dataset in `datasetsInFlight`, not `datasetsFailed`, and the next run resumes tracking the same message.
+- Choosing `DISPATCHER_VERIFICATION_TIMEOUT_MS`: it only needs to cover a normal delivery (the dispatcher hands a message to Domibus in about 5 seconds, then Domibus sends and receives a receipt), not Domibus retries, which later runs pick up. Datasets are processed one at a time, so a run with many stuck messages can take roughly their number × the timeout; keep that below the `SYNC_SCHEDULE` interval, or the overlapping scheduled run is skipped. Values around 15–30 seconds suit a 15-minute schedule.
+- `ACKNOWLEDGED` and `ACKNOWLEDGED_WITH_WARNING` proceed to Central Platform verification. After verification succeeds, the local status becomes `delivered`. `SEND_FAILURE`, `NOT_FOUND`, and `DELETED` are terminal Domibus statuses: the run counts the dataset as failed, and the next delivery attempt submits a fresh message instead of tracking the old one. Missing Domibus status is treated as not yet available, so tracking continues until a status appears or the verification timeout is reached.
 - Successful verification stores the Central Platform object ID used for later update/delete calls.
 - A delete is removed from local state only after successful verification or dispatcher HTTP 404.
 

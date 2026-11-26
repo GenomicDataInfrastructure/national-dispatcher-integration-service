@@ -4,6 +4,7 @@
 import { MetadataValidator } from "../../src/validation/metadata-validator.js";
 import { DatasetDeliveryService } from "../../src/application/dataset-delivery-service.js";
 import { describe, expect, it, vi } from "vitest";
+import { DispatcherError } from "../../src/dispatcher/national-dispatcher-client.js";
 import {
   SyncAlreadyRunningError,
   SyncOrchestrator,
@@ -199,4 +200,95 @@ it("delivers warnings-only datasets without counting validation failures", async
   } finally {
     synchronize.mockRestore();
   }
+});
+
+describe("in-flight Domibus deliveries", () => {
+  function deliveryError(message: string, status: string, inFlight: boolean) {
+    const error = new DispatcherError(message, "timeout", 504);
+    error.deliveryContext = {
+      datasetId: "x",
+      status,
+      dispatcherDatabaseId: "db-1",
+      correlationId: null,
+      inFlight,
+    };
+    return error;
+  }
+
+  it("counts datasets still retrying in Domibus as in flight, not failed", async () => {
+    const synchronize = vi
+      .spyOn(DatasetDeliveryService.prototype, "synchronize")
+      .mockImplementation(async (datasetId: string) => {
+        if (datasetId === "retrying")
+          throw deliveryError(
+            "Timed out waiting for dispatcher correlation ID",
+            "WAITING_FOR_RETRY",
+            true,
+          );
+        if (datasetId === "broken")
+          throw deliveryError("Verification rejected", "failed", false);
+        return { state: { status: "delivered" } as any, operation: "created" };
+      });
+    const remove = vi
+      .spyOn(DatasetDeliveryService.prototype, "delete")
+      .mockRejectedValue(deliveryError("Tracking timed out", "pending", true));
+    const runs: any = {
+      create: vi.fn(async (runId: string) => ({ runId })),
+      setRunning: vi.fn(),
+      withSyncLock: vi.fn(async (work: () => Promise<void>) => {
+        await work();
+        return true;
+      }),
+      finish: vi.fn(),
+    };
+    const catalogue: any = {
+      assertCompatibleDatasetIds: vi.fn(),
+      listDatasets: vi.fn(async () => [
+        { datasetId: "ok", rdf: "<ok/>" },
+        { datasetId: "retrying", rdf: "<retrying/>" },
+        { datasetId: "broken", rdf: "<broken/>" },
+      ]),
+      listDeletedDatasetIds: vi.fn(async () => ["gone"]),
+    };
+    const states: any = {
+      forSource: vi.fn(() => ({ listDatasetIds: vi.fn(async () => []) })),
+    };
+    try {
+      await new SyncOrchestrator(catalogue, states, runs, {} as any).trigger();
+      await vi.waitFor(() => expect(runs.finish).toHaveBeenCalled());
+      expect(runs.finish).toHaveBeenCalledWith(
+        expect.any(String),
+        "completed",
+        expect.objectContaining({
+          datasetsSeen: 3,
+          datasetsCreated: 1,
+          datasetsFailed: 1,
+          datasetsInFlight: 2,
+        }),
+        null,
+        [
+          {
+            datasetId: "retrying",
+            sourceSystem: "userportal",
+            deliveryStatus: "WAITING_FOR_RETRY",
+            note: expect.stringContaining("tracking resumes on the next run"),
+          },
+          {
+            datasetId: "broken",
+            sourceSystem: "userportal",
+            error: "Verification rejected",
+          },
+          {
+            datasetId: "gone",
+            sourceSystem: "userportal",
+            deliveryStatus: "pending",
+            note: expect.stringContaining("Tracking timed out"),
+          },
+        ],
+      );
+    } finally {
+      synchronize.mockRestore();
+      remove.mockRestore();
+    }
+  });
 });

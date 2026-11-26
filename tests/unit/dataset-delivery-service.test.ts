@@ -103,6 +103,92 @@ describe("DatasetDeliveryService", () => {
       lastError: "Tracking timed out",
     });
   });
+  it("marks the delivery context in flight when tracking times out during a Domibus retry", async () => {
+    const { service, dispatcher } = setup({
+      datasetId: "dataset-1",
+      checksum: "x",
+      dispatcherDatabaseId: "db-existing",
+      centralPlatformObjectId: null,
+      correlationId: null,
+      status: "pending",
+    });
+    dispatcher.track.mockImplementationOnce(
+      async (_id: string, onStatus: (status: string) => Promise<void>) => {
+        await onStatus("WAITING_FOR_RETRY");
+        throw new DispatcherError("Tracking timed out", "timeout", 504);
+      },
+    );
+
+    await expect(service.create("dataset-1", "new")).rejects.toMatchObject({
+      deliveryContext: { status: "WAITING_FOR_RETRY", inFlight: true },
+    });
+  });
+  it.each(["timeout", "network"] as const)(
+    "keeps a new create pending when tracking fails with %s before Domibus reports a status",
+    async (kind) => {
+      const { service, dispatcher, repo } = setup();
+      dispatcher.track.mockRejectedValueOnce(
+        new DispatcherError("Tracking stopped", kind, 504),
+      );
+
+      await expect(service.create("dataset-1", "new")).rejects.toMatchObject({
+        deliveryContext: {
+          status: "pending",
+          dispatcherDatabaseId: "db-1",
+          inFlight: true,
+        },
+      });
+      expect(await repo.get("dataset-1")).toMatchObject({
+        status: "pending",
+        dispatcherDatabaseId: "db-1",
+        lastError: "Tracking stopped",
+      });
+    },
+  );
+  it("keeps a resumed update pending when tracking times out again", async () => {
+    const { service, dispatcher, repo } = setup({
+      datasetId: "dataset-1",
+      checksum: "old",
+      centralPlatformObjectId: "central-1",
+      dispatcherDatabaseId: "db-update",
+      operation: "update",
+      status: "pending",
+    });
+    dispatcher.track.mockRejectedValueOnce(
+      new DispatcherError("Tracking timed out", "timeout", 504),
+    );
+
+    await expect(service.update("dataset-1", "new")).rejects.toMatchObject({
+      deliveryContext: { status: "pending", inFlight: true },
+    });
+    expect(dispatcher.update).not.toHaveBeenCalled();
+    expect(await repo.get("dataset-1")).toMatchObject({ status: "pending" });
+  });
+  it("records a pending create as failed when the dispatcher rejects RDF validation", async () => {
+    const { service, dispatcher, repo } = setup();
+    dispatcher.track.mockRejectedValueOnce(
+      new DispatcherError(
+        "National Dispatcher rejected RDF validation",
+        "validation",
+        422,
+      ),
+    );
+
+    await expect(service.create("dataset-1", "new")).rejects.toMatchObject({
+      deliveryContext: { status: "failed", inFlight: false },
+    });
+    expect(await repo.get("dataset-1")).toMatchObject({ status: "failed" });
+  });
+  it("does not mark failures after ACKNOWLEDGED as in flight", async () => {
+    const { service, dispatcher } = setup();
+    dispatcher.verify.mockRejectedValueOnce(
+      new DispatcherError("Verification timed out", "timeout", 504),
+    );
+
+    await expect(service.create("dataset-1", "new")).rejects.toMatchObject({
+      deliveryContext: { status: "failed", inFlight: false },
+    });
+  });
   it("submits a fresh create after the previous Domibus message failed", async () => {
     const { service, dispatcher } = setup({
       datasetId: "dataset-1",
@@ -140,6 +226,7 @@ describe("DatasetDeliveryService", () => {
         status: "failed",
         dispatcherDatabaseId: "db-existing",
         correlationId: "corr-existing",
+        inFlight: false,
       },
     });
   });

@@ -4,7 +4,10 @@
 import { MetadataValidator } from "../validation/metadata-validator.js";
 import { createHash, randomUUID } from "node:crypto";
 import type { SyncRun } from "../domain/sync-run.js";
-import type { NationalDispatcherClient } from "../dispatcher/national-dispatcher-client.js";
+import {
+  DispatcherError,
+  type NationalDispatcherClient,
+} from "../dispatcher/national-dispatcher-client.js";
 import type {
   SyncRunRepository,
   RunCounts,
@@ -32,10 +35,40 @@ const emptyCounts = (): RunCounts => ({
   datasetsSkipped: 0,
   datasetsDeleted: 0,
   datasetsFailed: 0,
+  datasetsInFlight: 0,
 });
 type RunProgress = { counts: RunCounts; reports: SyncRun["reports"] };
 const checksum = (rdf: string) =>
   createHash("sha256").update(rdf).digest("hex");
+
+/**
+ * Count a delivery error as in flight when Domibus may still deliver the
+ * message (e.g. tracking timed out during WAITING_FOR_RETRY), else as failed.
+ */
+function recordDeliveryError(
+  counts: RunCounts,
+  reports: SyncRun["reports"],
+  datasetId: string,
+  error: unknown,
+  fallback = "Delivery failed",
+): void {
+  const context =
+    error instanceof DispatcherError ? error.deliveryContext : undefined;
+  if (context?.inFlight) {
+    counts.datasetsInFlight++;
+    reports.push({
+      datasetId,
+      deliveryStatus: context.status,
+      note: `Still in flight (${context.status}); tracking resumes on the next run. Last tracking result: ${error instanceof Error ? error.message : fallback}`,
+    });
+    return;
+  }
+  reports.push({
+    datasetId,
+    error: error instanceof Error ? error.message : fallback,
+  });
+  counts.datasetsFailed++;
+}
 
 export class SyncOrchestrator {
   private active = false;
@@ -241,11 +274,7 @@ export class SyncOrchestrator {
         else if (result.operation === "updated") counts.datasetsUpdated++;
         else counts.datasetsCreated++;
       } catch (error) {
-        reports.push({
-          datasetId: dataset.datasetId,
-          error: error instanceof Error ? error.message : "Delivery failed",
-        });
-        counts.datasetsFailed++;
+        recordDeliveryError(counts, reports, dataset.datasetId, error);
       }
     }
 
@@ -257,11 +286,13 @@ export class SyncOrchestrator {
           await delivery.delete(deletedId);
           counts.datasetsDeleted++;
         } catch (error) {
-          reports.push({
-            datasetId: deletedId,
-            error: error instanceof Error ? error.message : "Delete failed",
-          });
-          counts.datasetsFailed++;
+          recordDeliveryError(
+            counts,
+            reports,
+            deletedId,
+            error,
+            "Delete failed",
+          );
         }
       }
     }

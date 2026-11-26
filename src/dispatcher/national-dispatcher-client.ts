@@ -15,6 +15,8 @@ export class DispatcherError extends Error {
     status: string;
     dispatcherDatabaseId: string | null;
     correlationId: string | null;
+    /** Domibus may still deliver the message; the next run resumes tracking. */
+    inFlight: boolean;
   };
 
   constructor(
