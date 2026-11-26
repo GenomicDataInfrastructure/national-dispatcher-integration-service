@@ -16,5 +16,12 @@ jobs:
         with:
           node-version: 24
           cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Create validator virtual environment
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install -r validator/requirements.txt
       - run: npm ci
       - run: npm run validate
