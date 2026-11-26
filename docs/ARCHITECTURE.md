@@ -217,19 +217,19 @@ report's profile matches `RELEASE8_VALIDATION_PROFILE`. Otherwise it shows
 
 ## HTTP API
 
-| Method and path                                    | Auth  | Purpose                                                              |
-| -------------------------------------------------- | ----- | -------------------------------------------------------------------- |
-| `GET /`                                            | none  | Read-only dashboard (refreshes every 5 seconds).                     |
-| `GET /health`                                      | none  | Liveness: the process is up.                                         |
-| `GET /ready`                                       | none  | Readiness: PostgreSQL is reachable (503 otherwise).                  |
-| `GET /api/v1/monitoring`                           | none  | Data behind the dashboard: counts, deliveries, run history.          |
-| `POST /api/v1/sync`                                | token | Start a full catalogue sync. Optional JSON body for per-run options. |
-| `POST /api/v1/sync/dataset/:datasetId`             | token | Sync one dataset from the catalogue. No deletions.                   |
-| `GET /api/v1/sync/:runId`                          | none  | Run status, counters, reports and settings.                          |
-| `POST /api/v1/dataset-deliveries`                  | token | Direct create. `X-Dataset-ID` header, RDF body.                      |
-| `PUT /api/v1/dataset-deliveries/:datasetId`        | token | Direct update.                                                       |
-| `DELETE /api/v1/dataset-deliveries/:datasetId`     | token | Direct delete.                                                       |
-| `GET /api/v1/dataset-deliveries/:datasetId/status` | none  | Delivery state of one dataset.                                       |
+| Method and path                                    | Auth  | Purpose                                                                                                 |
+| -------------------------------------------------- | ----- | ------------------------------------------------------------------------------------------------------- |
+| `GET /`                                            | none  | Read-only dashboard (refreshes every 5 seconds).                                                        |
+| `GET /health`                                      | none  | Liveness: the process is up.                                                                            |
+| `GET /ready`                                       | none  | Readiness: PostgreSQL is reachable (503 otherwise).                                                     |
+| `GET /api/v1/monitoring`                           | none  | Data behind the dashboard: grouped counts, sync health, the attention list, deliveries and run history. |
+| `POST /api/v1/sync`                                | token | Start a full catalogue sync. Optional JSON body for per-run options.                                    |
+| `POST /api/v1/sync/dataset/:datasetId`             | token | Sync one dataset from the catalogue. No deletions.                                                      |
+| `GET /api/v1/sync/:runId`                          | none  | Run status, counters, reports and settings.                                                             |
+| `POST /api/v1/dataset-deliveries`                  | token | Direct create. `X-Dataset-ID` header, RDF body.                                                         |
+| `PUT /api/v1/dataset-deliveries/:datasetId`        | token | Direct update.                                                                                          |
+| `DELETE /api/v1/dataset-deliveries/:datasetId`     | token | Direct delete.                                                                                          |
+| `GET /api/v1/dataset-deliveries/:datasetId/status` | none  | Delivery state of one dataset.                                                                          |
 
 "Token" means `Authorization: Bearer <CONTROL_API_TOKEN>`. Every non-GET
 request needs it. If no token is configured, those requests return 503; a

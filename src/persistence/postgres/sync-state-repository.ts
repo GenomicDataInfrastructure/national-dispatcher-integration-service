@@ -182,6 +182,20 @@ export class SyncStateRepository {
     return result.rows.map(mapState);
   }
 
+  /** Deliveries in the given statuses, uncertain first, then most recent. */
+  async listByStatuses(
+    statuses: readonly string[],
+    limit: number,
+  ): Promise<SyncState[]> {
+    const result = await this.pool.query<DbState>(
+      `SELECT * FROM "${this.schema}".dataset_delivery_sync
+       WHERE status = ANY($1::text[])
+       ORDER BY (status = 'uncertain') DESC, updated_at DESC, source_system, source_dataset_id LIMIT $2`,
+      [statuses, limit],
+    );
+    return result.rows.map(mapState);
+  }
+
   async statusCounts(): Promise<Record<string, number>> {
     const result = await this.pool.query<{ status: string; count: string }>(
       `SELECT status, COUNT(*)::text AS count FROM "${this.schema}".dataset_delivery_sync GROUP BY status`,

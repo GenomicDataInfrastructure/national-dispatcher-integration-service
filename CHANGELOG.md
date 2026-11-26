@@ -20,3 +20,12 @@ release; unreleased work is listed under `Unreleased`.
   counter instead of `datasetsFailed`; the dashboard shows them separately.
 - A tracking timeout or network error before Domibus reports a status keeps the
   delivery `pending` instead of recording it as `failed`.
+- The dashboard shows sync health at the top: time since the last completed
+  sync (flagged when overdue by more than two schedule intervals), whether a
+  sync is running, the next scheduled sync, and how many messages are waiting
+  on Domibus.
+- A "Needs attention" list shows failed, uncertain and Domibus-stopped
+  deliveries with their last error and what to do, uncertain ones first.
+- Dashboard counts now include Domibus statuses, so "Delivered", "In progress"
+  and "Needs attention" add up to the total. Previously datasets in statuses
+  such as `WAITING_FOR_RETRY` or `SEND_FAILURE` were missing from these counts.

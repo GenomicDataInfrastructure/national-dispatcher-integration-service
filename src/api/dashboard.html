@@ -31,6 +31,24 @@
         </div>
       </div>
       <div id="error" role="alert" hidden></div>
+      <section class="health" aria-label="Synchronization health">
+        <article id="health-last">
+          <p>Last completed sync</p>
+          <strong>—</strong><small></small>
+        </article>
+        <article id="health-active">
+          <p>Sync running now</p>
+          <strong>—</strong><small></small>
+        </article>
+        <article id="health-next">
+          <p>Next scheduled sync</p>
+          <strong>—</strong><small></small>
+        </article>
+        <article id="health-domibus">
+          <p>Waiting on Domibus</p>
+          <strong>—</strong><small></small>
+        </article>
+      </section>
       <aside class="validation-context">
         <strong id="delivery-context"
           >Delivery and compliance are separate checks.</strong
@@ -44,18 +62,22 @@
         <article>
           <p>Tracked datasets</p>
           <strong id="total">—</strong>
+          <small>All sources</small>
         </article>
         <article>
-          <p>Delivery acknowledged</p>
+          <p>Delivered</p>
           <strong id="delivered">—</strong>
+          <small>Verified on the Central Platform</small>
         </article>
         <article>
           <p>In progress</p>
           <strong id="pending">—</strong>
+          <small>Being sent, with Domibus, or awaiting verification</small>
         </article>
         <article>
           <p>Needs attention</p>
           <strong id="attention">—</strong>
+          <small>Failed, uncertain, or stopped by Domibus</small>
         </article>
       </section>
       <p class="note">
@@ -63,6 +85,31 @@
         Validation-only results appear in sync history. Removed deliveries are
         no longer in these counts.
       </p>
+      <section class="panel attention-panel" id="attention-panel" hidden>
+        <div class="section-head">
+          <div>
+            <h2>Needs attention</h2>
+            <p id="attention-summary">
+              Deliveries that failed, may need manual reconciliation, or were
+              stopped by Domibus
+            </p>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Dataset / source</th>
+                <th>Status</th>
+                <th>Last error</th>
+                <th>What to do</th>
+                <th>Last attempt</th>
+              </tr>
+            </thead>
+            <tbody id="attention-rows"></tbody>
+          </table>
+        </div>
+      </section>
       <section class="panel">
         <div class="section-head">
           <div>

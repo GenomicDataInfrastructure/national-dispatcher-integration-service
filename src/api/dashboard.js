@@ -8,6 +8,126 @@ let stateOffset = 0,
   timer,
   requestNumber = 0;
 const date = (value) => (value ? new Date(value).toLocaleString() : "—");
+function relative(value) {
+  if (!value) return "—";
+  const minutes = Math.round((new Date(value).getTime() - Date.now()) / 60000);
+  const size = Math.abs(minutes);
+  const text =
+    size < 1
+      ? "under a minute"
+      : size < 90
+        ? size + " min"
+        : size < 48 * 60
+          ? Math.round(size / 60) + " h"
+          : Math.round(size / 1440) + " days";
+  if (size < 1) return minutes < 0 ? "just now" : "within a minute";
+  return minutes < 0 ? text + " ago" : "in " + text;
+}
+function healthCard(id, value, detail, tone, title) {
+  const card = el(id);
+  card.className = tone || "";
+  card.querySelector("strong").textContent = value;
+  card.querySelector("small").textContent = detail || "";
+  card.title = title || "";
+}
+function modeLabel(mode) {
+  return mode === "legacy_delivery" ? "historical delivery" : mode;
+}
+function drawHealth(health, summary) {
+  const last = health.lastCompletedRun;
+  const latest = health.latestRun;
+  const latestFailed =
+    latest && latest.status === "failed" && latest.runId !== last?.runId;
+  if (!last)
+    healthCard(
+      "health-last",
+      "None yet",
+      latestFailed ? "Latest run failed: " + (latest.error || "") : "",
+      latestFailed ? "alert" : "",
+    );
+  else {
+    const issues = [];
+    if (last.datasetsFailed) issues.push(last.datasetsFailed + " failed");
+    if (last.datasetsInFlight)
+      issues.push(last.datasetsInFlight + " in flight");
+    const detail = health.overdue
+      ? "Overdue: no sync has completed for over two schedule intervals"
+      : latestFailed
+        ? "A later run failed: " + (latest.error || "see history")
+        : [modeLabel(last.mode), ...issues].join(" · ");
+    healthCard(
+      "health-last",
+      relative(last.completedAt),
+      detail,
+      health.overdue || latestFailed
+        ? "alert"
+        : last.datasetsFailed
+          ? "warn"
+          : "ok",
+      date(last.completedAt),
+    );
+  }
+  const active = health.activeRun;
+  healthCard(
+    "health-active",
+    active ? "Yes" : "No",
+    active
+      ? modeLabel(active.mode) +
+          " · " +
+          active.status +
+          " since " +
+          relative(active.startedAt)
+      : "",
+    active ? "active" : "",
+    active ? "Run " + active.runId + " started " + date(active.startedAt) : "",
+  );
+  const scheduling = health.scheduling;
+  healthCard(
+    "health-next",
+    scheduling.enabled ? relative(scheduling.nextRunAt) : "Off",
+    scheduling.enabled
+      ? "Schedule " + scheduling.schedule
+      : "Scheduled sync is disabled",
+    scheduling.enabled ? "ok" : "warn",
+    scheduling.enabled ? date(scheduling.nextRunAt) : "",
+  );
+  healthCard(
+    "health-domibus",
+    String(summary.awaitingDomibus),
+    summary.awaitingDomibus
+      ? "Tracking resumes on each run until Domibus finishes"
+      : "No messages waiting",
+    summary.awaitingDomibus ? "active" : "ok",
+  );
+}
+function drawAttention(attention) {
+  el("attention-panel").hidden = attention.total === 0;
+  el("attention-summary").textContent =
+    attention.total > attention.items.length
+      ? "Showing " +
+        attention.items.length +
+        " of " +
+        attention.total +
+        ". Uncertain deliveries are listed first. Use the status filter below to see the rest."
+      : "Uncertain deliveries are listed first. Failed deliveries are retried automatically on the next sync.";
+  const body = el("attention-rows");
+  body.replaceChildren();
+  for (const item of attention.items) {
+    const row = node("tr");
+    const identity = cell(row, item.datasetId);
+    identity.append(node("small", sourceLabel(item.sourceSystem)));
+    const status = cell(row, badge(item.status));
+    if (item.operation)
+      status.append(
+        node("small", item.operation + " · " + item.retryCount + " attempt(s)"),
+      );
+    cell(row, item.lastError || "—");
+    cell(row, item.action);
+    const attempted = cell(row, relative(item.lastAttemptedAt));
+    attempted.title = date(item.lastAttemptedAt);
+    body.append(row);
+  }
+}
 function node(tag, text, className) {
   const n = document.createElement(tag);
   if (text !== undefined) n.textContent = String(text);
@@ -491,17 +611,13 @@ async function refresh() {
       throw new Error("Status endpoint returned HTTP " + response.status);
     const data = await response.json();
     if (current !== requestNumber) return;
-    const counts = data.counts;
-    el("total").textContent = Object.values(counts).reduce((a, b) => a + b, 0);
-    el("delivered").textContent = counts.delivered || 0;
-    el("pending").textContent = [
-      "pending",
-      "creating",
-      "updating",
-      "deleting",
-    ].reduce((n, key) => n + (counts[key] || 0), 0);
-    el("attention").textContent =
-      (counts.failed || 0) + (counts.uncertain || 0);
+    const summary = data.summary;
+    el("total").textContent = summary.total;
+    el("delivered").textContent = summary.delivered;
+    el("pending").textContent = summary.inProgress;
+    el("attention").textContent = summary.attention;
+    drawHealth(data.health, summary);
+    drawAttention(data.attention);
     el("delivery-context").textContent =
       "Default operation mode: " +
       data.operationMode +

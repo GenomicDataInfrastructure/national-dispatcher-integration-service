@@ -9,7 +9,12 @@ import { z } from "zod";
 import type { SyncStateRepository } from "../persistence/postgres/sync-state-repository.js";
 import type { SyncRunRepository } from "../persistence/postgres/sync-run-repository.js";
 import { dashboardHtml, dashboardCss, dashboardJs } from "./dashboard-page.js";
-import { DELIVERY_STATUSES } from "../domain/delivery-status.js";
+import {
+  ATTENTION_STATUSES,
+  DELIVERY_STATUSES,
+  attentionAction,
+} from "../domain/delivery-status.js";
+import { summarizeDeliveries, syncHealth } from "../application/sync-health.js";
 import {
   CATALOGUE_SOURCE,
   CATALOGUE_PERSISTENCE_NAMESPACE,
@@ -18,6 +23,8 @@ import {
   displaySourceSystem,
   persistenceSourceSystem,
 } from "../domain/source-system.js";
+
+const ATTENTION_LIMIT = 10;
 
 const query = z.object({
   stateOffset: z.coerce.number().int().min(0).max(1000000).default(0),
@@ -57,16 +64,26 @@ export async function registerMonitoringRoutes(
     const { stateOffset, runOffset, source, status } = parsed.data;
     const persistedSource = persistenceSourceSystem(source);
     reply.header("Cache-Control", "no-store");
-    const [deliveries, recentRuns, counts] = await Promise.all([
-      states.listRecent(
-        26,
-        stateOffset,
-        persistedSource ?? null,
-        status ?? null,
-      ),
-      runs ? runs.listRecent(11, runOffset) : Promise.resolve([]),
-      states.statusCounts(),
-    ]);
+    const [deliveries, recentRuns, counts, attentionStates, runHealth] =
+      await Promise.all([
+        states.listRecent(
+          26,
+          stateOffset,
+          persistedSource ?? null,
+          status ?? null,
+        ),
+        runs ? runs.listRecent(11, runOffset) : Promise.resolve([]),
+        states.statusCounts(),
+        states.listByStatuses(ATTENTION_STATUSES, ATTENTION_LIMIT),
+        runs
+          ? runs.healthSnapshot()
+          : Promise.resolve({
+              active: null,
+              lastCompleted: null,
+              latest: null,
+            }),
+      ]);
+    const summary = summarizeDeliveries(counts);
     const page = deliveries.slice(0, 25);
     const evidence = runs
       ? (
@@ -130,6 +147,21 @@ export async function registerMonitoringRoutes(
       release8Profile: config?.release8ValidationProfile ?? null,
       observedAt: new Date().toISOString(),
       counts,
+      summary,
+      health: syncHealth(config?.sync, runHealth, new Date()),
+      attention: {
+        total: summary.attention,
+        items: attentionStates.map((state) => ({
+          datasetId: state.datasetId,
+          sourceSystem: displaySourceSystem(state.sourceSystem),
+          status: state.status,
+          operation: state.operation,
+          retryCount: state.retryCount,
+          lastError: state.lastError,
+          lastAttemptedAt: state.lastAttemptedAt,
+          action: attentionAction(state.status),
+        })),
+      },
       deliveries: page.map((state) => {
         const sourceSystem = displaySourceSystem(state.sourceSystem);
         return {

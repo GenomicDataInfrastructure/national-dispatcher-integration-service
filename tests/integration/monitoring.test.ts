@@ -26,6 +26,7 @@ function setup() {
       },
     ]),
     statusCounts: vi.fn(async () => ({ delivered: 1 })),
+    listByStatuses: vi.fn(async () => []),
     get: vi.fn(async () => null),
     withDatasetLock: vi.fn(),
   };
@@ -40,6 +41,11 @@ function setup() {
       },
     ]),
     create: vi.fn(),
+    healthSnapshot: vi.fn(async () => ({
+      active: null,
+      lastCompleted: null,
+      latest: null,
+    })),
   };
   const fetchImpl = vi.fn();
   return { states, runs, fetchImpl };
@@ -276,6 +282,88 @@ it("does not mix catalogue evidence with retained legacy source records", async 
       "failed",
       "passed",
     ]);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  } finally {
+    await app.close();
+  }
+});
+
+it("groups delivery counts, reports sync health and lists deliveries needing attention", async () => {
+  const { states, runs, fetchImpl } = setup();
+  states.statusCounts.mockResolvedValue({
+    delivered: 5,
+    pending: 1,
+    WAITING_FOR_RETRY: 2,
+    ACKNOWLEDGED: 1,
+    updating: 1,
+    failed: 1,
+    uncertain: 1,
+    SEND_FAILURE: 1,
+  });
+  states.listByStatuses.mockResolvedValue([
+    {
+      datasetId: "https://example.org/d1",
+      sourceSystem: "userportal",
+      status: "uncertain",
+      operation: "create",
+      retryCount: 1,
+      lastError: "National Dispatcher request timed out",
+      lastAttemptedAt: new Date(),
+      checksum: "secret-checksum",
+    },
+  ]);
+  const completedAt = new Date(Date.now() - 5 * 60000);
+  runs.healthSnapshot.mockResolvedValue({
+    active: null,
+    lastCompleted: {
+      runId: "done",
+      status: "completed",
+      mode: "sync_only",
+      startedAt: completedAt,
+      completedAt,
+      datasetsFailed: 0,
+      datasetsInFlight: 2,
+      error: null,
+      reports: [],
+    },
+    latest: null,
+  });
+  const app = await buildApp(
+    { ...config, sync: { enabled: false, schedule: "*/15 * * * *" } },
+    states,
+    fetchImpl as any,
+    runs,
+  );
+  try {
+    const body = (await app.inject("/api/v1/monitoring")).json();
+    expect(body.summary).toEqual({
+      total: 13,
+      delivered: 5,
+      inProgress: 5,
+      awaitingDomibus: 3,
+      attention: 3,
+    });
+    expect(states.listByStatuses).toHaveBeenCalledWith(
+      ["uncertain", "failed", "SEND_FAILURE", "NOT_FOUND", "DELETED"],
+      10,
+    );
+    expect(body.attention.total).toBe(3);
+    expect(body.attention.items).toEqual([
+      expect.objectContaining({
+        datasetId: "https://example.org/d1",
+        sourceSystem: "catalogue",
+        status: "uncertain",
+        action: expect.stringContaining("not retried automatically"),
+      }),
+    ]);
+    expect(body.attention.items[0]).not.toHaveProperty("checksum");
+    expect(body.health).toMatchObject({
+      scheduling: { enabled: false, nextRunAt: null },
+      activeRun: null,
+      lastCompletedRun: { runId: "done", datasetsInFlight: 2 },
+      overdue: false,
+    });
+    expect(body.health.lastCompletedRun).not.toHaveProperty("reports");
     expect(fetchImpl).not.toHaveBeenCalled();
   } finally {
     await app.close();

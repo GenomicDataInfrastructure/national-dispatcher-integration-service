@@ -120,6 +120,61 @@ h2 {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
+.metrics small,
+.health small {
+  display: block;
+  color: #748398;
+  font-size: 12px;
+  line-height: 1.5;
+  margin-top: 8px;
+}
+.health {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin: 0 0 22px;
+}
+.health article {
+  background: white;
+  border: 1px solid #dfe5ee;
+  border-left: 4px solid #b9c6d4;
+  border-radius: 12px;
+  padding: 16px 20px;
+}
+.health p {
+  color: #66778c;
+  font-size: 13px;
+  margin: 0 0 8px;
+}
+.health strong {
+  font-size: 20px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.health .ok {
+  border-left-color: #488078;
+}
+.health .active {
+  border-left-color: #355f9b;
+}
+.health .warn {
+  border-left-color: #c27a1a;
+  background: #fff8ec;
+}
+.health .alert {
+  border-left-color: #a44336;
+  background: #fff0ed;
+}
+.attention-panel {
+  border-color: #efc7bf;
+}
+.attention-panel .section-head {
+  background: #fff6f4;
+}
+.attention-panel td:nth-child(3),
+.attention-panel td:nth-child(4) {
+  min-width: 220px;
+}
 .validation-context {
   border: 1px solid #b7ccdf;
   background: #edf4fa;
@@ -420,7 +475,8 @@ footer {
   line-height: 1.6;
 }
 @media (max-width: 800px) {
-  .metrics {
+  .metrics,
+  .health {
     grid-template-columns: repeat(2, 1fr);
   }
   .heading,

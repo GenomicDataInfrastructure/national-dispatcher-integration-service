@@ -200,6 +200,36 @@ export class SyncRunRepository {
     return result.rows.map(map);
   }
 
+  /**
+   * Runs that describe current sync health, without their reports: the
+   * newest queued or running run, the newest completed run, and the newest
+   * run of any status.
+   */
+  async healthSnapshot(): Promise<{
+    active: SyncRun | null;
+    lastCompleted: SyncRun | null;
+    latest: SyncRun | null;
+  }> {
+    const columns = `run_id, status, mode, source_system, settings, started_at, completed_at, datasets_seen, datasets_created, datasets_updated, datasets_skipped, datasets_deleted, datasets_failed, datasets_in_flight, error, '[]'::jsonb AS reports`;
+    const table = `"${this.schema}".sync_runs`;
+    const result = await this.pool.query<RunRow & { kind: string }>(
+      `(SELECT 'active' AS kind, ${columns} FROM ${table} WHERE status IN ('queued', 'running') ORDER BY started_at DESC, run_id DESC LIMIT 1)
+       UNION ALL
+       (SELECT 'lastCompleted' AS kind, ${columns} FROM ${table} WHERE status = 'completed' ORDER BY completed_at DESC, run_id DESC LIMIT 1)
+       UNION ALL
+       (SELECT 'latest' AS kind, ${columns} FROM ${table} ORDER BY started_at DESC, run_id DESC LIMIT 1)`,
+    );
+    const pick = (kind: string) => {
+      const row = result.rows.find((item) => item.kind === kind);
+      return row ? map(row) : null;
+    };
+    return {
+      active: pick("active"),
+      lastCompleted: pick("lastCompleted"),
+      latest: pick("latest"),
+    };
+  }
+
   async withSyncLock<T>(work: () => Promise<T>): Promise<T | null> {
     const client = await this.pool.connect();
     // Keep this key stable so rolling upgrades still share the same advisory lock.

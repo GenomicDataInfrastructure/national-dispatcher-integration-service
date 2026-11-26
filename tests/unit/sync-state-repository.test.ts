@@ -66,3 +66,15 @@ describe("SyncStateRepository", () => {
     expect(client.release).toHaveBeenCalledOnce();
   });
 });
+
+it("lists deliveries in the requested statuses with uncertain ones first", async () => {
+  const pool: any = { query: vi.fn(async () => ({ rows: [] })) };
+  await new SyncStateRepository(pool, "dataset_delivery").listByStatuses(
+    ["uncertain", "failed"],
+    10,
+  );
+  const [sql, params] = pool.query.mock.calls[0];
+  expect(sql).toContain("status = ANY($1::text[])");
+  expect(sql).toContain("ORDER BY (status = 'uncertain') DESC");
+  expect(params).toEqual([["uncertain", "failed"], 10]);
+});

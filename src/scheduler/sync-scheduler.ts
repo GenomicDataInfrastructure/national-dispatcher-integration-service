@@ -28,6 +28,27 @@ export function cronMatches(expression: string, date: Date): boolean {
   return fields.every((field, index) => fieldMatches(field, values[index]!));
 }
 
+const SEARCH_LIMIT_MINUTES = 8 * 24 * 60;
+
+/**
+ * Next minutes after `from` that match the schedule, searching up to eight
+ * days ahead. Returns fewer entries when the schedule fires less often.
+ */
+export function nextCronMatches(
+  expression: string,
+  from: Date,
+  count = 1,
+): Date[] {
+  const matches: Date[] = [];
+  const cursor = new Date(from);
+  cursor.setSeconds(0, 0);
+  for (let i = 0; i < SEARCH_LIMIT_MINUTES && matches.length < count; i++) {
+    cursor.setMinutes(cursor.getMinutes() + 1);
+    if (cronMatches(expression, cursor)) matches.push(new Date(cursor));
+  }
+  return matches;
+}
+
 export class SyncScheduler {
   private timer?: NodeJS.Timeout;
   private lastMinute = "";
