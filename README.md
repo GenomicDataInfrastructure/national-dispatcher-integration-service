@@ -5,6 +5,9 @@
 
 Shared server-side adapter through which HDAB and GDI submit dataset metadata to the existing National Dispatcher. It does not transfer dataset files or replace dispatcher/Central Platform behavior.
 
+- [How the service works](docs/ARCHITECTURE.md): components, sync flow, delivery lifecycle, API and stored data.
+- [Configuration reference](docs/CONFIGURATION.md): every environment variable, defaults and startup checks.
+
 ## License
 
 Original application source is licensed under Apache-2.0; project documentation
