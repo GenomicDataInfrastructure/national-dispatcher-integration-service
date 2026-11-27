@@ -14,7 +14,7 @@ export const OPERATION_MODES = [
 export type SyncRun = {
   sourceSystem?: string;
   settings?: import("../application/run-options.js").RunSettings;
-  mode: OperationMode | "legacy_delivery";
+  mode: OperationMode;
   reports: Array<{
     datasetId: string;
     sourceSystem?: string;

@@ -3,7 +3,7 @@
 
 # National Dispatcher Integration Service
 
-Shared server-side adapter through which HDAB and GDI submit dataset metadata to the existing National Dispatcher. It does not transfer dataset files or replace dispatcher/Central Platform behavior.
+Server-side service that synchronizes dataset metadata from a single catalogue RDF (`DATASET_CATALOGUE_RDF_URL`) to the existing National Dispatcher. The catalogue is the only input. It does not transfer dataset files or replace dispatcher/Central Platform behavior.
 
 - [How the service works](docs/ARCHITECTURE.md): components, sync flow, delivery lifecycle, API and stored data.
 - [Configuration reference](docs/CONFIGURATION.md): every environment variable, defaults and startup checks.
@@ -45,35 +45,30 @@ set +a
 curl -H "Authorization: Bearer $CONTROL_API_TOKEN" -X POST http://localhost:8080/api/v1/sync
 ```
 
-The dashboard reads `GET /api/v1/monitoring`; optional `source` (`catalogue`,
-`adapter`, or a legacy source), `status`, `stateOffset`, and `runOffset` query parameters page through
+The dashboard reads `GET /api/v1/monitoring`; optional `status`, `stateOffset`,
+and `runOffset` query parameters filter and page through
 25 deliveries and 10 runs per response. It reads persisted state only and makes
 no calls to the catalogue or the dispatcher. No credentials are included in its
 responses. Expand a run or dataset's details to inspect errors and identifiers.
 
 ## API
 
-All metadata writes use `Content-Type: application/rdf+xml` (also accepted: Turtle and JSON-LD). Create requests identify the source dataset with `X-Dataset-ID`; subsequent operations use the same ID in the path. The dispatcher API key is read only from server configuration.
-
-```bash
-curl -H "Authorization: Bearer $CONTROL_API_TOKEN" -X POST http://localhost:8080/api/v1/dataset-deliveries \
-  -H 'Content-Type: application/rdf+xml' -H 'X-Dataset-ID: dataset-123' \
-  --data-binary @dataset.rdf
-
-curl -H "Authorization: Bearer $CONTROL_API_TOKEN" -X PUT http://localhost:8080/api/v1/dataset-deliveries/dataset-123 \
-  -H 'Content-Type: application/rdf+xml' --data-binary @dataset.rdf
-
-curl http://localhost:8080/api/v1/dataset-deliveries/dataset-123/status
-curl -H "Authorization: Bearer $CONTROL_API_TOKEN" -X DELETE http://localhost:8080/api/v1/dataset-deliveries/dataset-123
-```
-
-The adapter endpoints remain source-neutral. All modifying requests now require an operator token. When
-`DATASET_CATALOGUE_RDF_URL` is configured, synchronization can also be started asynchronously:
+Metadata enters the service only through catalogue synchronization. Start a run
+asynchronously (the dispatcher API key is read only from server configuration):
 
 ```bash
 curl -H "Authorization: Bearer $CONTROL_API_TOKEN" -X POST http://localhost:8080/api/v1/sync
 curl -H "Authorization: Bearer $CONTROL_API_TOKEN" -X POST http://localhost:8080/api/v1/sync/dataset/dataset-123
 curl http://localhost:8080/api/v1/sync/00000000-0000-0000-0000-000000000000
+```
+
+To look up the delivery state of one catalogue dataset, URL-encode its dataset
+URI. The request needs no token, reads stored state only and returns 404 when
+nothing is recorded for that dataset:
+
+```bash
+# Dataset https://catalogue.example/dataset/1
+curl http://localhost:8080/api/v1/datasets/https%3A%2F%2Fcatalogue.example%2Fdataset%2F1/status
 ```
 
 Each POST returns `202`, a run ID, its actual operation `mode`
@@ -87,7 +82,7 @@ instead, with a report carrying `deliveryStatus` and a `note`. An explicit
 still works. Omitting the query follows `OPERATION_MODE`; the legacy
 `?mode=deliver` alias also follows that configuration.
 A second run is rejected while one is active.
-Configure the default metadata source with `DATASET_CATALOGUE_RDF_URL`.
+The metadata source is configured with `DATASET_CATALOGUE_RDF_URL`.
 
 ## Local setup
 
@@ -128,10 +123,7 @@ templates are needed. Single-dataset requests also extract from the catalogue.
 Catalogue wrappers and other datasets are excluded from each dataset's RDF.
 
 Dataset identity is the full dataset URI, so repeated `dct:identifier` values do
-not collide. Catalogue sync keeps the existing default-source database namespace
-to reuse delivery state. Non-URI IDs in that namespace must be migrated before
-catalogue synchronization. Historical HealthData records remain visible as
-legacy records and are not reconciled by catalogue runs. Discovery tolerates
+not collide. Delivery state is stored under the source `catalogue`. Discovery tolerates
 invalid metadata IRIs without repairing their values; validation may still reject
 that metadata. Incomplete reference-only or paginated catalogues are rejected
 before deletion reconciliation.
@@ -175,8 +167,7 @@ Do not combine a JSON options body with the legacy `?mode=` query.
 
 Responses include the run's resolved `settings`; `GET /api/v1/sync/:runId` and the
 dashboard retain these settings even after service defaults change. Per-dataset
-reports retain the actual selected access level and ruleset profile/hash. Historical
-runs without saved settings remain identifiable by their existing mode and reports.
+reports retain the actual selected access level and ruleset profile/hash.
 
 `DATASET_CATALOGUE_RDF_URL` is the sole metadata source for synchronization.
 Scheduling uses `SYNC_ENABLED` and `SYNC_SCHEDULE`.
@@ -197,10 +188,6 @@ Scheduling uses `SYNC_ENABLED` and `SYNC_SCHEDULE`.
 
 An `uncertain` create intentionally requires operator reconciliation: without a dispatcher ID there is no safe automated way to distinguish a rejected request from an accepted response that was lost.
 
-## HDAB rewiring
-
-Keep the existing HDAB RDF serializer. Replace the direct National Dispatcher client call with a request to this service, sending the local dataset ID as `X-Dataset-ID`. Remove the MongoDB checksum-store dependency only after traffic has been migrated; this service owns all new synchronization state in PostgreSQL.
-
 ## Validation
 
 ```bash
@@ -213,7 +200,7 @@ Open the [`bruno`](./bruno) directory as a Bruno collection and select the
 `Local` environment for health, readiness, and source synchronization requests.
 Create it by copying `bruno/environments/Local.example.bru` to
 `bruno/environments/Local.bru` and filling in the placeholders.
-Direct National Dispatcher and dataset-delivery collections are kept in the
+Direct National Dispatcher collections are kept in the
 sibling `../national-dispatcher-integration-service-operator-collections/`
 directory. The repository includes only a placeholder Bruno environment sample.
 
@@ -345,7 +332,7 @@ serves the claimed release. Keep `RELEASE8_VALIDATION_PROFILE` unset until verif
 The dashboard displays delivery status separately from Release 8 assessment.
 `OPERATION_MODE` controls processing against the actual dispatcher:
 
-- `validate_only`: validate catalogue metadata and store reports without delivery writes. Direct delivery mutations are rejected.
+- `validate_only`: validate catalogue metadata and store reports without delivery writes.
 - `validate_and_sync`: validate each dataset before create/update; invalid metadata or validator errors block that dataset. Deletes still synchronize.
 - `sync_only` (default): synchronize without metadata validation.
 
@@ -365,7 +352,7 @@ shown as unassessed/outdated, and a validator failure is an error rather than a
 conformance verdict. Historical reports without checksums cannot establish a pass.
 Assessments describe the stored RDF snapshot, not later catalogue changes.
 Validation-only reports remain visible in sync history even without a delivery
-record. Direct API submissions are not matched to catalogue validation results.
+record.
 
 ## HealthData@EU validator API
 

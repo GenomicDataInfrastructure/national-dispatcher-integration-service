@@ -28,11 +28,11 @@ This runs a delivery sync (`sync_only`, no validation) every 15 minutes.
 
 ## HTTP server
 
-| Variable            | Default   | Description                                                                                                                                                                                                                                      |
-| ------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `PORT`              | `8080`    | Port to listen on (1 to 65535).                                                                                                                                                                                                                  |
-| `HOST`              | `0.0.0.0` | Interface to bind to.                                                                                                                                                                                                                            |
-| `CONTROL_API_TOKEN` | unset     | Bearer token required for every non-GET request (starting syncs, direct deliveries). Minimum 32 characters. When unset, those requests return 503 and the dashboard is read-only. It is separate from the dispatcher key and redacted from logs. |
+| Variable            | Default   | Description                                                                                                                                                                                                                   |
+| ------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PORT`              | `8080`    | Port to listen on (1 to 65535).                                                                                                                                                                                               |
+| `HOST`              | `0.0.0.0` | Interface to bind to.                                                                                                                                                                                                         |
+| `CONTROL_API_TOKEN` | unset     | Bearer token required for every non-GET request (starting syncs). Minimum 32 characters. When unset, those requests return 503 and the dashboard is read-only. It is separate from the dispatcher key and redacted from logs. |
 
 ## National Dispatcher
 
@@ -86,10 +86,9 @@ message asking you to use `DATASET_CATALOGUE_RDF_URL` instead.
 - `sync_only`: deliver changes without validating metadata. The dispatcher's
   own RDF validation is also turned off (`disableValidation=true`).
 - `validate_and_sync`: validate each dataset first; only passing datasets are
-  delivered. Deletes still go through. Direct `POST`/`PUT` deliveries are
-  validated too and return 422 on failure.
+  delivered. Deletes still go through.
 - `validate_only`: validate and store reports; nothing is sent to the
-  dispatcher. Direct delivery writes are rejected with 409.
+  dispatcher.
 
 Any mode other than `sync_only` needs a working validator configuration
 (below); otherwise the service refuses to start.

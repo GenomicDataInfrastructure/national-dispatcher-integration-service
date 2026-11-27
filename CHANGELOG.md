@@ -8,6 +8,18 @@ release; unreleased work is listed under `Unreleased`.
 
 ## Unreleased
 
+- Removed the direct delivery API (`/api/v1/dataset-deliveries`) and its
+  `adapter` source. The catalogue configured with `DATASET_CATALOGUE_RDF_URL` is
+  now the only way metadata enters the service.
+- Removed handling for data from earlier deployments, since the service starts
+  with an empty database: the migrations are squashed into
+  `001_initial_schema.sql`, catalogue rows are stored under `catalogue` instead
+  of `userportal`, and legacy HealthData records, the monitoring `source`
+  filter, old run modes and the non-URI dataset ID check are gone. Recreate any
+  local or test database that ran the earlier migrations.
+- Added `GET /api/v1/datasets/:datasetId/status` to look up the delivery state
+  of one catalogue dataset. It replaces the removed direct API's status
+  endpoint, which only found datasets pushed through that API.
 - Initial repository setup for the National Dispatcher Integration Service.
 - Added the HTTP API, read-only monitoring dashboard, PostgreSQL-backed delivery
   state, and scheduled catalogue synchronization.

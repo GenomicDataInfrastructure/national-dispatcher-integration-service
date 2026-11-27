@@ -34,6 +34,9 @@ CREATE TABLE IF NOT EXISTS sync_runs (
   datasets_skipped INTEGER NOT NULL DEFAULT 0,
   datasets_deleted INTEGER NOT NULL DEFAULT 0,
   datasets_failed INTEGER NOT NULL DEFAULT 0,
+  -- Datasets whose Domibus message is still in flight (e.g. WAITING_FOR_RETRY)
+  -- when tracking stops are counted here instead of datasets_failed.
+  datasets_in_flight INTEGER NOT NULL DEFAULT 0,
   error TEXT,
   mode TEXT NOT NULL DEFAULT 'sync_only',
   reports JSONB NOT NULL DEFAULT '[]'::jsonb,
@@ -41,5 +44,5 @@ CREATE TABLE IF NOT EXISTS sync_runs (
   settings JSONB
 );
 
-CREATE INDEX IF NOT EXISTS sync_runs_source_started_idx
+CREATE INDEX IF NOT EXISTS sync_runs_started_idx
   ON sync_runs (started_at DESC);

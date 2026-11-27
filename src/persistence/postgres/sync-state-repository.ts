@@ -7,12 +7,11 @@ import type {
   DeliveryStatus,
 } from "../../domain/delivery-status.js";
 import type { SyncState } from "../../domain/sync-state.js";
-import { ADAPTER_SOURCE } from "../../domain/source-system.js";
+import { CATALOGUE_SOURCE } from "../../domain/source-system.js";
 
 type DbState = {
-  source_system?: string;
-  dataset_id?: string;
-  source_dataset_id?: string;
+  source_system: string;
+  source_dataset_id: string;
   checksum: string | null;
   dispatcher_database_id: string | null;
   central_platform_object_id: string | null;
@@ -30,13 +29,13 @@ type DbState = {
 
 function mapState(row: DbState): SyncState {
   return {
-    sourceSystem: row.source_system ?? ADAPTER_SOURCE,
-    datasetId: row.source_dataset_id ?? row.dataset_id!,
+    sourceSystem: row.source_system,
+    datasetId: row.source_dataset_id,
     checksum: row.checksum,
     dispatcherDatabaseId: row.dispatcher_database_id,
     centralPlatformObjectId: row.central_platform_object_id,
     correlationId: row.correlation_id,
-    domibusMessageId: row.domibus_message_id ?? row.correlation_id,
+    domibusMessageId: row.domibus_message_id,
     operation: row.operation,
     status: row.status,
     retryCount: row.retry_count,
@@ -65,7 +64,7 @@ export class SyncStateRepository {
   public constructor(
     private readonly pool: pg.Pool,
     private readonly schema: string,
-    private readonly sourceSystem: string = ADAPTER_SOURCE,
+    private readonly sourceSystem: string = CATALOGUE_SOURCE,
   ) {}
 
   forSource(sourceSystem: string): SyncStateRepository {
@@ -77,10 +76,7 @@ export class SyncStateRepository {
     work: (repository: SyncStateRepository) => Promise<T>,
   ): Promise<T> {
     const client = await this.pool.connect();
-    const lockKey =
-      this.sourceSystem === ADAPTER_SOURCE
-        ? datasetId
-        : `${this.sourceSystem}:${datasetId}`;
+    const lockKey = `${this.sourceSystem}:${datasetId}`;
     try {
       await client.query("SELECT pg_advisory_lock(hashtextextended($1, 0))", [
         lockKey,
@@ -170,14 +166,13 @@ export class SyncStateRepository {
   async listRecent(
     limit: number,
     offset: number,
-    source: string | null,
     status: string | null,
   ): Promise<SyncState[]> {
     const result = await this.pool.query<DbState>(
       `SELECT * FROM "${this.schema}".dataset_delivery_sync
-       WHERE ($3::text IS NULL OR source_system = $3) AND ($4::text IS NULL OR status = $4)
-       ORDER BY updated_at DESC, source_system, source_dataset_id LIMIT $1 OFFSET $2`,
-      [limit, offset, source, status],
+       WHERE ($3::text IS NULL OR status = $3)
+       ORDER BY updated_at DESC, source_dataset_id LIMIT $1 OFFSET $2`,
+      [limit, offset, status],
     );
     return result.rows.map(mapState);
   }

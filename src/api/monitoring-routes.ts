@@ -15,21 +15,15 @@ import {
   attentionAction,
 } from "../domain/delivery-status.js";
 import { summarizeDeliveries, syncHealth } from "../application/sync-health.js";
-import {
-  CATALOGUE_SOURCE,
-  CATALOGUE_PERSISTENCE_NAMESPACE,
-  LEGACY_HEALTHDATA_SOURCE,
-  SOURCE_SYSTEMS,
-  displaySourceSystem,
-  persistenceSourceSystem,
-} from "../domain/source-system.js";
+import { CATALOGUE_SOURCE } from "../domain/source-system.js";
 
 const ATTENTION_LIMIT = 10;
+
+const datasetParams = z.object({ datasetId: z.string().min(1).max(512) });
 
 const query = z.object({
   stateOffset: z.coerce.number().int().min(0).max(1000000).default(0),
   runOffset: z.coerce.number().int().min(0).max(1000000).default(0),
-  source: z.enum(SOURCE_SYSTEMS).optional(),
   status: z.enum(DELIVERY_STATUSES).optional(),
 });
 
@@ -57,21 +51,30 @@ export async function registerMonitoringRoutes(
   app.get("/dashboard.js", async (_request, reply) =>
     reply.type("application/javascript").send(dashboardJs),
   );
+  app.get("/api/v1/datasets/:datasetId/status", async (request, reply) => {
+    const parsed = datasetParams.safeParse(request.params);
+    if (!parsed.success)
+      return reply.code(400).send({ error: "invalid_request" });
+    const state = await states
+      .forSource(CATALOGUE_SOURCE)
+      .get(parsed.data.datasetId);
+    reply.header("Cache-Control", "no-store");
+    if (!state)
+      return reply.code(404).send({
+        error: "not_found",
+        message: "No delivery state is recorded for this catalogue dataset",
+      });
+    return state;
+  });
   app.get("/api/v1/monitoring", async (request, reply) => {
     const parsed = query.safeParse(request.query);
     if (!parsed.success)
       return reply.code(400).send({ error: "invalid_request" });
-    const { stateOffset, runOffset, source, status } = parsed.data;
-    const persistedSource = persistenceSourceSystem(source);
+    const { stateOffset, runOffset, status } = parsed.data;
     reply.header("Cache-Control", "no-store");
     const [deliveries, recentRuns, counts, attentionStates, runHealth] =
       await Promise.all([
-        states.listRecent(
-          26,
-          stateOffset,
-          persistedSource ?? null,
-          status ?? null,
-        ),
+        states.listRecent(26, stateOffset, status ?? null),
         runs ? runs.listRecent(11, runOffset) : Promise.resolve([]),
         states.statusCounts(),
         states.listByStatuses(ATTENTION_STATUSES, ATTENTION_LIMIT),
@@ -86,56 +89,22 @@ export async function registerMonitoringRoutes(
     const summary = summarizeDeliveries(counts);
     const page = deliveries.slice(0, 25);
     const evidence = runs
-      ? (
-          await Promise.all(
-            (
-              [
-                {
-                  source: CATALOGUE_SOURCE,
-                  persistedSource: CATALOGUE_PERSISTENCE_NAMESPACE,
-                },
-                {
-                  source: LEGACY_HEALTHDATA_SOURCE,
-                  persistedSource: LEGACY_HEALTHDATA_SOURCE,
-                },
-              ] as const
-            ).map(async ({ source, persistedSource }) =>
-              (
-                await runs.latestValidationReports(
-                  page
-                    .filter((state) => state.sourceSystem === persistedSource)
-                    .map((state) => state.datasetId),
-                  persistedSource,
-                )
-              ).map((item) => ({ ...item, sourceSystem: source })),
-            ),
-          )
-        ).flat()
+      ? await runs.latestValidationReports(
+          page.map((state) => state.datasetId),
+          CATALOGUE_SOURCE,
+        )
       : [];
     const hydratedEvidence = await Promise.all(
       evidence.map((item) => withValidationFindings(item)),
     );
     const byId = new Map(
-      hydratedEvidence.map((item) => [
-        `${item.sourceSystem}:${item.datasetId}`,
-        item,
-      ]),
+      hydratedEvidence.map((item) => [item.datasetId, item]),
     );
     const visibleRuns = await Promise.all(
       recentRuns.slice(0, 10).map(async (run) => ({
         ...run,
-        sourceSystem: displaySourceSystem(run.sourceSystem),
-        settings:
-          run.settings?.source === CATALOGUE_PERSISTENCE_NAMESPACE
-            ? { ...run.settings, source: CATALOGUE_SOURCE }
-            : run.settings,
         reports: await Promise.all(
-          (run.reports ?? []).map(async (item) =>
-            withValidationFindings({
-              ...item,
-              sourceSystem: displaySourceSystem(item.sourceSystem),
-            }),
-          ),
+          (run.reports ?? []).map((item) => withValidationFindings(item)),
         ),
       })),
     );
@@ -153,7 +122,7 @@ export async function registerMonitoringRoutes(
         total: summary.attention,
         items: attentionStates.map((state) => ({
           datasetId: state.datasetId,
-          sourceSystem: displaySourceSystem(state.sourceSystem),
+          sourceSystem: state.sourceSystem,
           status: state.status,
           operation: state.operation,
           retryCount: state.retryCount,
@@ -162,23 +131,14 @@ export async function registerMonitoringRoutes(
           action: attentionAction(state.status),
         })),
       },
-      deliveries: page.map((state) => {
-        const sourceSystem = displaySourceSystem(state.sourceSystem);
-        return {
-          ...state,
-          sourceSystem,
-          compliance: complianceState(
-            state.checksum,
-            [CATALOGUE_SOURCE, LEGACY_HEALTHDATA_SOURCE].includes(
-              sourceSystem as
-                typeof CATALOGUE_SOURCE | typeof LEGACY_HEALTHDATA_SOURCE,
-            )
-              ? byId.get(`${sourceSystem}:${state.datasetId}`)
-              : undefined,
-            config?.release8ValidationProfile,
-          ),
-        };
-      }),
+      deliveries: page.map((state) => ({
+        ...state,
+        compliance: complianceState(
+          state.checksum,
+          byId.get(state.datasetId),
+          config?.release8ValidationProfile,
+        ),
+      })),
       hasMoreDeliveries: deliveries.length > 25,
       runs: visibleRuns,
       hasMoreRuns: recentRuns.length > 10,

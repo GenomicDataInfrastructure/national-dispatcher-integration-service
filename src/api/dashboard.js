@@ -30,9 +30,6 @@ function healthCard(id, value, detail, tone, title) {
   card.querySelector("small").textContent = detail || "";
   card.title = title || "";
 }
-function modeLabel(mode) {
-  return mode === "legacy_delivery" ? "historical delivery" : mode;
-}
 function drawHealth(health, summary) {
   const last = health.lastCompletedRun;
   const latest = health.latestRun;
@@ -54,7 +51,7 @@ function drawHealth(health, summary) {
       ? "Overdue: no sync has completed for over two schedule intervals"
       : latestFailed
         ? "A later run failed: " + (latest.error || "see history")
-        : [modeLabel(last.mode), ...issues].join(" · ");
+        : [last.mode, ...issues].join(" · ");
     healthCard(
       "health-last",
       relative(last.completedAt),
@@ -72,7 +69,7 @@ function drawHealth(health, summary) {
     "health-active",
     active ? "Yes" : "No",
     active
-      ? modeLabel(active.mode) +
+      ? active.mode +
           " · " +
           active.status +
           " since " +
@@ -175,9 +172,6 @@ function sourceLabel(source) {
   return (
     {
       catalogue: "Catalogue",
-      userportal: "Catalogue",
-      healthdata: "Legacy HealthData@EU",
-      adapter: "Direct API",
     }[source] || source
   );
 }
@@ -410,12 +404,7 @@ function showRun(run) {
     fields([
       ["Run ID", run.runId],
       ["Source", sourceLabel(run.sourceSystem)],
-      [
-        "Operation mode",
-        run.mode === "legacy_delivery"
-          ? "Historical delivery (validation mode unknown)"
-          : run.mode,
-      ],
+      ["Operation mode", run.mode],
       ["Validator selection", run.settings?.validator],
       ["Validation mode", run.settings?.validationMode],
       ["Ruleset version", run.settings?.validationVersion],
@@ -475,12 +464,7 @@ function drawRuns(runs) {
     const row = node("tr");
     const identity = cell(row, date(run.startedAt));
     identity.append(node("small", run.runId));
-    const runMode = cell(
-      row,
-      run.mode === "legacy_delivery"
-        ? "Historical delivery (validation mode unknown)"
-        : run.mode,
-    );
+    const runMode = cell(row, run.mode);
     runMode.append(
       node(
         "small",
@@ -596,7 +580,6 @@ async function refresh() {
     stateOffset: String(stateOffset),
     runOffset: String(runOffset),
   });
-  if (el("source").value) params.set("source", el("source").value);
   if (el("status").value) params.set("status", el("status").value);
   // Preserve expanded reports across background refreshes.
   const opened = new Set(
@@ -655,11 +638,10 @@ async function refresh() {
   }
 }
 el("detail-close").addEventListener("click", () => el("detail-dialog").close());
-for (const id of ["source", "status"])
-  el(id).addEventListener("change", () => {
-    stateOffset = 0;
-    refresh();
-  });
+el("status").addEventListener("change", () => {
+  stateOffset = 0;
+  refresh();
+});
 for (const [id, step, kind] of [
   ["states-prev", -25, "state"],
   ["states-next", 25, "state"],

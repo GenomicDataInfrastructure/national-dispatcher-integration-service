@@ -1,9 +1,6 @@
 import type { OperationMode } from "../../config/config.js";
 import type { ValidationEvidence } from "../../domain/compliance-state.js";
-import {
-  CATALOGUE_PERSISTENCE_NAMESPACE,
-  displaySourceSystem,
-} from "../../domain/source-system.js";
+import { CATALOGUE_SOURCE } from "../../domain/source-system.js";
 // SPDX-FileCopyrightText: 2026 PNED G.I.E.
 // SPDX-License-Identifier: Apache-2.0
 
@@ -11,9 +8,9 @@ import type pg from "pg";
 import type { SyncRun, SyncRunStatus } from "../../domain/sync-run.js";
 
 type RunRow = {
-  settings?: SyncRun["settings"];
-  source_system?: string;
-  mode: SyncRun["mode"] | "deliver" | "validate";
+  settings: SyncRun["settings"] | null;
+  source_system: string;
+  mode: SyncRun["mode"];
   reports: SyncRun["reports"];
   run_id: string;
   status: SyncRunStatus;
@@ -30,27 +27,10 @@ type RunRow = {
 };
 
 const map = (row: RunRow): SyncRun => ({
-  sourceSystem: displaySourceSystem(row.source_system),
-  mode:
-    row.mode === "validate"
-      ? "validate_only"
-      : row.mode === "deliver"
-        ? "legacy_delivery"
-        : row.mode,
-  reports: row.reports.map((report) => ({
-    ...report,
-    ...(report.sourceSystem
-      ? { sourceSystem: displaySourceSystem(report.sourceSystem) }
-      : {}),
-  })),
-  ...(row.settings
-    ? {
-        settings: {
-          ...row.settings,
-          source: displaySourceSystem(row.settings.source),
-        },
-      }
-    : {}),
+  sourceSystem: row.source_system,
+  mode: row.mode,
+  reports: row.reports,
+  ...(row.settings ? { settings: row.settings } : {}),
   runId: row.run_id,
   status: row.status,
   startedAt: row.started_at,
@@ -61,7 +41,7 @@ const map = (row: RunRow): SyncRun => ({
   datasetsSkipped: row.datasets_skipped,
   datasetsDeleted: row.datasets_deleted,
   datasetsFailed: row.datasets_failed,
-  datasetsInFlight: row.datasets_in_flight ?? 0,
+  datasetsInFlight: row.datasets_in_flight,
   error: row.error,
 });
 
@@ -118,8 +98,7 @@ export class SyncRunRepository {
   async create(
     runId: string,
     mode: OperationMode = "sync_only",
-    // The catalogue replaced the old default source in this namespace to preserve delivery state.
-    sourceSystem: string = CATALOGUE_PERSISTENCE_NAMESPACE,
+    sourceSystem: string = CATALOGUE_SOURCE,
     settings?: SyncRun["settings"],
   ): Promise<SyncRun> {
     const result = await this.pool.query<RunRow>(
@@ -171,7 +150,7 @@ export class SyncRunRepository {
 
   async latestValidationReports(
     datasetIds: string[],
-    sourceSystem: string = CATALOGUE_PERSISTENCE_NAMESPACE,
+    sourceSystem: string = CATALOGUE_SOURCE,
   ): Promise<ValidationEvidence[]> {
     if (!datasetIds.length) return [];
     const result = await this.pool.query<{
@@ -181,7 +160,7 @@ export class SyncRunRepository {
     }>(
       `SELECT DISTINCT ON (item->>'datasetId') item AS evidence, completed_at AS checked_at, run_id
        FROM "${this.schema}".sync_runs CROSS JOIN LATERAL jsonb_array_elements(reports) AS item
-       WHERE COALESCE(item->>'sourceSystem', 'userportal') = $2 AND (mode IN ('validate', 'validate_only') OR item ? 'conforms') AND completed_at IS NOT NULL AND item->>'datasetId' = ANY($1::text[])
+       WHERE item->>'sourceSystem' = $2 AND (mode = 'validate_only' OR item ? 'conforms') AND completed_at IS NOT NULL AND item->>'datasetId' = ANY($1::text[])
        ORDER BY item->>'datasetId', started_at DESC, run_id DESC`,
       [datasetIds, sourceSystem],
     );
@@ -232,8 +211,7 @@ export class SyncRunRepository {
 
   async withSyncLock<T>(work: () => Promise<T>): Promise<T | null> {
     const client = await this.pool.connect();
-    // Keep this key stable so rolling upgrades still share the same advisory lock.
-    const key = "userportal-dataset-sync";
+    const key = "catalogue-dataset-sync";
     try {
       const locked = await client.query<{ locked: boolean }>(
         "SELECT pg_try_advisory_lock(hashtextextended($1, 0)) AS locked",

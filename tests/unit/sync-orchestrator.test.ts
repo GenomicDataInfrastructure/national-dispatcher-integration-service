@@ -78,7 +78,7 @@ describe("validation-only sync", () => {
     expect(runs.create).toHaveBeenCalledWith(
       expect.any(String),
       "validate_only",
-      "userportal",
+      "catalogue",
     );
     expect(runs.finish).toHaveBeenCalledWith(
       expect.any(String),
@@ -95,7 +95,7 @@ describe("validation-only sync", () => {
         {
           datasetId: "valid",
           checksum: expect.any(String),
-          sourceSystem: "userportal",
+          sourceSystem: "catalogue",
           conforms: true,
           profile: "test",
           report: "report",
@@ -103,7 +103,7 @@ describe("validation-only sync", () => {
         {
           datasetId: "invalid",
           checksum: expect.any(String),
-          sourceSystem: "userportal",
+          sourceSystem: "catalogue",
           conforms: false,
           profile: "test",
           report: "report",
@@ -111,7 +111,7 @@ describe("validation-only sync", () => {
         {
           datasetId: "unavailable",
           checksum: expect.any(String),
-          sourceSystem: "userportal",
+          sourceSystem: "catalogue",
           error: "Validator offline",
         },
       ],
@@ -269,18 +269,18 @@ describe("in-flight Domibus deliveries", () => {
         [
           {
             datasetId: "retrying",
-            sourceSystem: "userportal",
+            sourceSystem: "catalogue",
             deliveryStatus: "WAITING_FOR_RETRY",
             note: expect.stringContaining("tracking resumes on the next run"),
           },
           {
             datasetId: "broken",
-            sourceSystem: "userportal",
+            sourceSystem: "catalogue",
             error: "Verification rejected",
           },
           {
             datasetId: "gone",
-            sourceSystem: "userportal",
+            sourceSystem: "catalogue",
             deliveryStatus: "pending",
             note: expect.stringContaining("Tracking timed out"),
           },

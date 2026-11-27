@@ -47,9 +47,9 @@ function setup(state: Record<string, unknown> | null = null) {
 describe("DatasetDeliveryService", () => {
   it("creates, tracks, verifies, and stores the object ID", async () => {
     const { service, dispatcher } = setup();
-    const result = await service.create("dataset-1", "<rdf />");
-    expect(result.status).toBe("delivered");
-    expect(result.centralPlatformObjectId).toBe("central-1");
+    const result = await service.synchronize("dataset-1", "<rdf />");
+    expect(result.state.status).toBe("delivered");
+    expect(result.state.centralPlatformObjectId).toBe("central-1");
     expect(dispatcher.track).toHaveBeenCalledWith("db-1", expect.any(Function));
   });
   it("skips unchanged delivered metadata", async () => {
@@ -60,7 +60,7 @@ describe("DatasetDeliveryService", () => {
       checksum: digest,
       status: "delivered",
     });
-    await service.create("dataset-1", "<rdf />");
+    await service.synchronize("dataset-1", "<rdf />");
     expect(dispatcher.create).not.toHaveBeenCalled();
   });
   it("resolves a pending create without creating a duplicate", async () => {
@@ -72,7 +72,7 @@ describe("DatasetDeliveryService", () => {
       correlationId: null,
       status: "pending",
     });
-    await service.create("dataset-1", "new");
+    await service.synchronize("dataset-1", "new");
     expect(dispatcher.create).not.toHaveBeenCalled();
     expect(dispatcher.track).toHaveBeenCalledWith(
       "db-existing",
@@ -95,9 +95,13 @@ describe("DatasetDeliveryService", () => {
       },
     );
 
-    await expect(service.create("dataset-1", "new")).rejects.toMatchObject({
-      deliveryContext: expect.objectContaining({ status: "WAITING_FOR_RETRY" }),
-    });
+    await expect(service.synchronize("dataset-1", "new")).rejects.toMatchObject(
+      {
+        deliveryContext: expect.objectContaining({
+          status: "WAITING_FOR_RETRY",
+        }),
+      },
+    );
     expect(await repo.get("dataset-1")).toMatchObject({
       status: "WAITING_FOR_RETRY",
       lastError: "Tracking timed out",
@@ -119,9 +123,11 @@ describe("DatasetDeliveryService", () => {
       },
     );
 
-    await expect(service.create("dataset-1", "new")).rejects.toMatchObject({
-      deliveryContext: { status: "WAITING_FOR_RETRY", inFlight: true },
-    });
+    await expect(service.synchronize("dataset-1", "new")).rejects.toMatchObject(
+      {
+        deliveryContext: { status: "WAITING_FOR_RETRY", inFlight: true },
+      },
+    );
   });
   it.each(["timeout", "network"] as const)(
     "keeps a new create pending when tracking fails with %s before Domibus reports a status",
@@ -131,7 +137,9 @@ describe("DatasetDeliveryService", () => {
         new DispatcherError("Tracking stopped", kind, 504),
       );
 
-      await expect(service.create("dataset-1", "new")).rejects.toMatchObject({
+      await expect(
+        service.synchronize("dataset-1", "new"),
+      ).rejects.toMatchObject({
         deliveryContext: {
           status: "pending",
           dispatcherDatabaseId: "db-1",
@@ -158,9 +166,11 @@ describe("DatasetDeliveryService", () => {
       new DispatcherError("Tracking timed out", "timeout", 504),
     );
 
-    await expect(service.update("dataset-1", "new")).rejects.toMatchObject({
-      deliveryContext: { status: "pending", inFlight: true },
-    });
+    await expect(service.synchronize("dataset-1", "new")).rejects.toMatchObject(
+      {
+        deliveryContext: { status: "pending", inFlight: true },
+      },
+    );
     expect(dispatcher.update).not.toHaveBeenCalled();
     expect(await repo.get("dataset-1")).toMatchObject({ status: "pending" });
   });
@@ -174,9 +184,11 @@ describe("DatasetDeliveryService", () => {
       ),
     );
 
-    await expect(service.create("dataset-1", "new")).rejects.toMatchObject({
-      deliveryContext: { status: "failed", inFlight: false },
-    });
+    await expect(service.synchronize("dataset-1", "new")).rejects.toMatchObject(
+      {
+        deliveryContext: { status: "failed", inFlight: false },
+      },
+    );
     expect(await repo.get("dataset-1")).toMatchObject({ status: "failed" });
   });
   it("does not mark failures after ACKNOWLEDGED as in flight", async () => {
@@ -185,9 +197,11 @@ describe("DatasetDeliveryService", () => {
       new DispatcherError("Verification timed out", "timeout", 504),
     );
 
-    await expect(service.create("dataset-1", "new")).rejects.toMatchObject({
-      deliveryContext: { status: "failed", inFlight: false },
-    });
+    await expect(service.synchronize("dataset-1", "new")).rejects.toMatchObject(
+      {
+        deliveryContext: { status: "failed", inFlight: false },
+      },
+    );
   });
   it("submits a fresh create after the previous Domibus message failed", async () => {
     const { service, dispatcher } = setup({
@@ -201,11 +215,11 @@ describe("DatasetDeliveryService", () => {
       operation: "create",
     });
 
-    const result = await service.create("dataset-1", "new");
+    const result = await service.synchronize("dataset-1", "new");
 
     expect(dispatcher.create).toHaveBeenCalledOnce();
     expect(dispatcher.track).toHaveBeenCalledWith("db-1", expect.any(Function));
-    expect(result.status).toBe("delivered");
+    expect(result.state.status).toBe("delivered");
   });
   it("adds persisted tracking identifiers to dispatcher failures", async () => {
     const { service, dispatcher } = setup({
@@ -220,15 +234,17 @@ describe("DatasetDeliveryService", () => {
       new DispatcherError("Central Platform rejected create", "http"),
     );
 
-    await expect(service.create("dataset-1", "new")).rejects.toMatchObject({
-      deliveryContext: {
-        datasetId: "dataset-1",
-        status: "failed",
-        dispatcherDatabaseId: "db-existing",
-        correlationId: "corr-existing",
-        inFlight: false,
+    await expect(service.synchronize("dataset-1", "new")).rejects.toMatchObject(
+      {
+        deliveryContext: {
+          datasetId: "dataset-1",
+          status: "failed",
+          dispatcherDatabaseId: "db-existing",
+          correlationId: "corr-existing",
+          inFlight: false,
+        },
       },
-    });
+    );
   });
   it("updates changed metadata", async () => {
     const { service, dispatcher } = setup({
@@ -237,7 +253,7 @@ describe("DatasetDeliveryService", () => {
       centralPlatformObjectId: "central-1",
       status: "delivered",
     });
-    await service.update("dataset-1", "new");
+    await service.synchronize("dataset-1", "new");
     expect(dispatcher.update).toHaveBeenCalledWith("central-1", "new");
   });
   it("submits a fresh update after the previous Domibus message failed", async () => {
@@ -252,11 +268,11 @@ describe("DatasetDeliveryService", () => {
       status: "SEND_FAILURE",
     });
 
-    const result = await service.update("dataset-1", "new");
+    const result = await service.synchronize("dataset-1", "new");
 
     expect(dispatcher.update).toHaveBeenCalledWith("central-1", "new");
     expect(dispatcher.track).toHaveBeenCalledWith("db-2", expect.any(Function));
-    expect(result.status).toBe("delivered");
+    expect(result.state.status).toBe("delivered");
   });
   it("deletes and verifies metadata", async () => {
     const { service, dispatcher, repo } = setup({
@@ -278,7 +294,7 @@ describe("DatasetDeliveryService", () => {
       operation: "update",
       status: "pending",
     });
-    await service.update("dataset-1", "new");
+    await service.synchronize("dataset-1", "new");
     expect(dispatcher.update).not.toHaveBeenCalled();
     expect(dispatcher.track).toHaveBeenCalledWith(
       "db-update",
@@ -307,7 +323,7 @@ describe("DatasetDeliveryService", () => {
       new DispatcherError("Central Platform rejected create", "http"),
     );
 
-    await expect(service.create("dataset-1", "new")).rejects.toThrow();
+    await expect(service.synchronize("dataset-1", "new")).rejects.toThrow();
     expect(await repo.get("dataset-1")).toMatchObject({
       status: "failed",
       lastError: "Central Platform rejected create",
@@ -327,7 +343,7 @@ describe("DatasetDeliveryService", () => {
       new DispatcherError("Dispatcher unavailable", "network"),
     );
 
-    await expect(service.update("dataset-1", "new")).rejects.toThrow();
+    await expect(service.synchronize("dataset-1", "new")).rejects.toThrow();
     const statuses = repo.save.mock.calls.map(
       ([, update]: any) => update.status,
     );
@@ -347,14 +363,14 @@ describe("DatasetDeliveryService", () => {
         status,
       });
 
-      const result = await service.create("dataset-1", "new");
+      const result = await service.synchronize("dataset-1", "new");
 
       expect(dispatcher.create).toHaveBeenCalledOnce();
       expect(dispatcher.track).not.toHaveBeenCalledWith(
         "db-lost",
         expect.any(Function),
       );
-      expect(result.status).toBe("delivered");
+      expect(result.state.status).toBe("delivered");
     },
   );
   it("submits a fresh delete after the previous Domibus message failed", async () => {
@@ -383,7 +399,7 @@ describe("DatasetDeliveryService", () => {
       status: "delivered",
     });
 
-    await service.update("dataset-1", "new");
+    await service.synchronize("dataset-1", "new");
 
     expect(repo.save.mock.calls[0][1]).toMatchObject({
       status: "updating",
@@ -408,9 +424,11 @@ it.each(["create", "update"] as const)(
     dispatcher.verify.mockRejectedValueOnce(
       new DispatcherError("Verification rejected", "http"),
     );
-    await expect(service[operation]("dataset-1", "new")).rejects.toMatchObject({
-      deliveryContext: expect.objectContaining({ datasetId: "dataset-1" }),
-    });
+    await expect(service.synchronize("dataset-1", "new")).rejects.toMatchObject(
+      {
+        deliveryContext: expect.objectContaining({ datasetId: "dataset-1" }),
+      },
+    );
     expect(await repo.get("dataset-1")).toMatchObject({
       lastError: "Verification rejected",
       incrementRetry: true,

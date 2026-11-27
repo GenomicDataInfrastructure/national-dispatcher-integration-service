@@ -7,7 +7,6 @@ import { VALIDATION_TYPES } from "../domain/validation.js";
 
 export const VALIDATOR_DEFAULT_TIMEOUT_MS = 120000;
 export const EXTERNAL_VALIDATOR_DEFAULT_TIMEOUT_MS = 30000;
-export const RDF_BODY_LIMIT_BYTES = 10 * 1024 * 1024;
 export const VALIDATOR_REPORT_LIMIT_BYTES = 10 * 1024 * 1024;
 
 const booleanValue = z

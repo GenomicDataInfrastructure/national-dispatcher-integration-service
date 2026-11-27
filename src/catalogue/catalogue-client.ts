@@ -54,14 +54,6 @@ export class CatalogueClient {
     return knownDatasetIds.filter((id) => !current.has(id));
   }
 
-  assertCompatibleDatasetIds(knownDatasetIds: string[]): void {
-    if (knownDatasetIds.some((id) => !/^[a-z][a-z0-9+.-]*:/i.test(id)))
-      throw new CatalogueError(
-        "Existing delivery state contains non-URI dataset IDs; migrate it before catalogue synchronization",
-        "protocol",
-      );
-  }
-
   private async readCatalogue(): Promise<MetadataDataset[]> {
     const controller = new AbortController();
     const timeout = setTimeout(

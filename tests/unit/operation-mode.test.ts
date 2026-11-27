@@ -61,7 +61,7 @@ describe("operation modes", () => {
       expect(runs.create).toHaveBeenCalledWith(
         expect.any(String),
         mode,
-        "userportal",
+        "catalogue",
       );
       await vi.waitFor(() => expect(runs.finish).toHaveBeenCalled());
       expect(validator.validate).toHaveBeenCalledTimes(

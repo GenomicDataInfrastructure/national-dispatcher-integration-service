@@ -14,10 +14,7 @@ import {
   type ResolveRun,
   type RunSettings,
 } from "./run-options.js";
-import {
-  CATALOGUE_SOURCE,
-  CATALOGUE_PERSISTENCE_NAMESPACE,
-} from "../domain/source-system.js";
+import { CATALOGUE_SOURCE } from "../domain/source-system.js";
 
 export function createRunResolver(
   config: AppConfig,
@@ -25,7 +22,7 @@ export function createRunResolver(
 ): ResolveRun {
   return async (request) => {
     const source = CATALOGUE_SOURCE;
-    const persistenceNamespace = CATALOGUE_PERSISTENCE_NAMESPACE;
+    const persistenceNamespace = CATALOGUE_SOURCE;
     const catalogueConfig = config.catalogue;
     if (!catalogueConfig)
       throw new InvalidRunOptionsError(

@@ -106,7 +106,7 @@ describe("per-run API options", () => {
       ).json();
       expect(saved.settings).toEqual(first.json().settings);
       expect(saved.reports[0]).toMatchObject({
-        sourceSystem: "userportal",
+        sourceSystem: "catalogue",
         validationType: "public",
         conforms: true,
       });
@@ -148,7 +148,6 @@ describe("per-run API options", () => {
 
   it.each([
     { source: "catalogue" },
-    { source: "healthdata" },
     { source: "unknown" },
     { validator: "unknown" },
     { validatorUrl: "https://caller.example" },
@@ -191,7 +190,7 @@ describe("per-run API options", () => {
     const resolve = createRunResolver(config(), fetchImpl as typeof fetch);
     for (const operationMode of ["sync_only", "validate_and_sync"] as const) {
       const run = await resolve({ operationMode });
-      expect(run.persistenceNamespace).toBe("userportal");
+      expect(run.persistenceNamespace).toBe("catalogue");
       await run.dispatcher.create("<rdf/>");
       const url = String(fetchImpl.mock.calls.at(-1)?.[0]);
       expect(new URL(url).searchParams.get("disableValidation")).toBe(
@@ -245,14 +244,14 @@ describe("per-run API options", () => {
     }
   });
 
-  it("preserves historical source values and saved settings", async () => {
+  it("preserves saved run settings", async () => {
     const row = {
       run_id: "id",
       mode: "validate_only",
-      source_system: "healthdata",
+      source_system: "catalogue",
       reports: [],
       settings: {
-        source: "healthdata",
+        source: "catalogue",
         operationMode: "validate_only",
         language: "en",
       },
@@ -262,7 +261,7 @@ describe("per-run API options", () => {
     const run = await repository.create(
       "id",
       "validate_only",
-      "healthdata",
+      "catalogue",
       row.settings as any,
     );
     expect(run.settings).toEqual(row.settings);

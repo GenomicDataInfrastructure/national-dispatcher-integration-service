@@ -51,7 +51,7 @@ describe("sync run operation modes", () => {
           expect(runs.create).toHaveBeenLastCalledWith(
             expect.any(String),
             expected,
-            "userportal",
+            "catalogue",
           );
           await vi.waitFor(() => expect(runs.finish).toHaveBeenCalled());
         }

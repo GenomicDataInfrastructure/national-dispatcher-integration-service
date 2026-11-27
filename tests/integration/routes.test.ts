@@ -49,18 +49,4 @@ describe("HTTP API", () => {
     ).toBe(200);
     await app.close();
   });
-  it("rejects an invalid submission", async () => {
-    const app = await buildApp(config, repository(), vi.fn() as any);
-    const response = await app.inject({
-      method: "POST",
-      url: "/api/v1/dataset-deliveries",
-      headers: {
-        "content-type": "application/rdf+xml",
-        authorization: `Bearer ${config.controlApiToken}`,
-      },
-      payload: "",
-    });
-    expect(response.statusCode).toBe(400);
-    await app.close();
-  });
 });

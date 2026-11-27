@@ -24,7 +24,7 @@ import {
 } from "./run-options.js";
 
 import type { OperationMode } from "../config/config.js";
-import { CATALOGUE_PERSISTENCE_NAMESPACE } from "../domain/source-system.js";
+import { CATALOGUE_SOURCE } from "../domain/source-system.js";
 
 export class SyncAlreadyRunningError extends Error {}
 export class ValidationUnavailableError extends Error {}
@@ -111,7 +111,7 @@ export class SyncOrchestrator {
             dispatcher: this.dispatcher,
             validator: this.validator,
             mode,
-            persistenceNamespace: CATALOGUE_PERSISTENCE_NAMESPACE,
+            persistenceNamespace: CATALOGUE_SOURCE,
           };
       if (mode !== "sync_only" && !context.validator)
         throw new ValidationUnavailableError(
@@ -245,7 +245,6 @@ export class SyncOrchestrator {
     const { mode, catalogue, validator, persistenceNamespace, dispatcher } =
       context;
     const repository = this.states.forSource(persistenceNamespace);
-    catalogue.assertCompatibleDatasetIds(await repository.listDatasetIds());
     const delivery = new DatasetDeliveryService(repository, dispatcher);
     const datasets = datasetId
       ? [await catalogue.getDataset(datasetId)]

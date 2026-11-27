@@ -15,7 +15,6 @@ import type { SyncState } from "../domain/sync-state.js";
 import { SyncStateRepository } from "../persistence/postgres/sync-state-repository.js";
 
 export class DeliveryConflictError extends Error {}
-export class DeliveryNotFoundError extends Error {}
 export type DeliveryResult = {
   state: SyncState;
   operation: "created" | "updated" | "skipped";
@@ -50,13 +49,6 @@ export class DatasetDeliveryService {
     private readonly repository: SyncStateRepository,
     private readonly dispatcher: NationalDispatcherClient,
   ) {}
-
-  create(datasetId: string, rdf: string): Promise<SyncState> {
-    return this.repository.withDatasetLock(datasetId, async (repo) => {
-      const existing = await repo.get(datasetId);
-      return this.createLocked(repo, datasetId, rdf, checksum(rdf), existing);
-    });
-  }
 
   private async createLocked(
     repo: SyncStateRepository,
@@ -129,18 +121,6 @@ export class DatasetDeliveryService {
       const state = await this.recordFailure(repo, datasetId, error, "create");
       this.throwWithDeliveryContext(error, state);
     }
-  }
-
-  update(datasetId: string, rdf: string): Promise<SyncState> {
-    return this.repository.withDatasetLock(datasetId, async (repo) => {
-      const existing = await repo.get(datasetId);
-      if (!existing)
-        throw new DeliveryNotFoundError("Dataset delivery state was not found");
-      const digest = checksum(rdf);
-      if (existing.checksum === digest && existing.status === "delivered")
-        return existing;
-      return this.updateLocked(repo, existing, rdf, digest);
-    });
   }
 
   async synchronize(datasetId: string, rdf: string): Promise<DeliveryResult> {
@@ -240,13 +220,6 @@ export class DatasetDeliveryService {
         this.throwWithDeliveryContext(error, state);
       }
     });
-  }
-
-  async status(datasetId: string): Promise<SyncState> {
-    const state = await this.repository.get(datasetId);
-    if (!state)
-      throw new DeliveryNotFoundError("Dataset delivery state was not found");
-    return state;
   }
 
   private async updateLocked(

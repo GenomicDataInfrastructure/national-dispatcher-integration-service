@@ -21,7 +21,7 @@ function setup() {
     listRecent: vi.fn(async () => [
       {
         datasetId: "<script>bad</script>",
-        sourceSystem: "userportal",
+        sourceSystem: "catalogue",
         status: "delivered",
       },
     ]),
@@ -76,12 +76,12 @@ describe("Read-only monitoring", () => {
     }
   });
 
-  it("reads paginated states across namespaces and history without side effects", async () => {
+  it("reads paginated states and history without side effects", async () => {
     const { states, runs, fetchImpl } = setup();
     states.listRecent.mockResolvedValue(
       Array.from({ length: 26 }, (_, i) => ({
         datasetId: String(i),
-        sourceSystem: "userportal",
+        sourceSystem: "catalogue",
       })),
     );
     runs.listRecent.mockResolvedValue(
@@ -90,7 +90,7 @@ describe("Read-only monitoring", () => {
     const app = await buildApp(config, states, fetchImpl as any, runs);
     try {
       const response = await app.inject(
-        "/api/v1/monitoring?stateOffset=25&runOffset=10&source=catalogue&status=failed",
+        "/api/v1/monitoring?stateOffset=25&runOffset=10&status=failed",
       );
       expect(response.statusCode).toBe(200);
       expect(response.headers["cache-control"]).toBe("no-store");
@@ -100,12 +100,7 @@ describe("Read-only monitoring", () => {
       expect(body.hasMoreDeliveries).toBe(true);
       expect(body.hasMoreRuns).toBe(true);
       expect(body.counts).toEqual({ delivered: 1 });
-      expect(states.listRecent).toHaveBeenCalledWith(
-        26,
-        25,
-        "userportal",
-        "failed",
-      );
+      expect(states.listRecent).toHaveBeenCalledWith(26, 25, "failed");
       expect(runs.listRecent).toHaveBeenCalledWith(11, 10);
       expect(states.withDatasetLock).not.toHaveBeenCalled();
       expect(runs.create).not.toHaveBeenCalled();
@@ -124,9 +119,6 @@ describe("Read-only monitoring", () => {
   it.each([
     ["POST", "/api/v1/sync"],
     ["POST", "/api/v1/sync/dataset/dataset-1?mode=validate"],
-    ["POST", "/api/v1/dataset-deliveries"],
-    ["PUT", "/api/v1/dataset-deliveries/dataset-1"],
-    ["DELETE", "/api/v1/dataset-deliveries/dataset-1"],
   ])(
     "rejects unauthenticated %s %s before any side effects",
     async (method, url) => {
@@ -151,31 +143,25 @@ describe("Read-only monitoring", () => {
   );
 
   it("allows authorized operator requests and disables controls when no token is configured", async () => {
-    const { states, fetchImpl } = setup();
-    const app = await buildApp(config, states, fetchImpl as any);
+    const { states, runs, fetchImpl } = setup();
+    const app = await buildApp(config, states, fetchImpl as any, runs);
     const disabled = await buildApp(
       { ...config, controlApiToken: undefined },
       states,
       fetchImpl as any,
+      runs,
     );
     try {
       const response = await app.inject({
         method: "POST",
-        url: "/api/v1/dataset-deliveries",
-        headers: {
-          authorization: "Bearer " + token,
-          "content-type": "application/rdf+xml",
-        },
-        payload: "",
+        url: "/api/v1/sync?mode=invalid",
+        headers: { authorization: "Bearer " + token },
       });
-      expect(response.statusCode).toBe(400); // Passed auth; rejected by body validation.
+      expect(response.statusCode).toBe(400); // Passed auth; rejected by query validation.
+      expect(runs.create).not.toHaveBeenCalled();
       expect(
-        (
-          await disabled.inject({
-            method: "POST",
-            url: "/api/v1/dataset-deliveries",
-          })
-        ).statusCode,
+        (await disabled.inject({ method: "POST", url: "/api/v1/sync" }))
+          .statusCode,
       ).toBe(503);
       expect((await disabled.inject("/api/v1/monitoring")).statusCode).toBe(
         200,
@@ -185,107 +171,6 @@ describe("Read-only monitoring", () => {
       await disabled.close();
     }
   });
-});
-
-it("separates catalogue compliance evidence from direct API records", async () => {
-  const { states, runs, fetchImpl } = setup();
-  const profile = "release-8:trusted-rules";
-  states.listRecent.mockResolvedValue([
-    {
-      datasetId: "same-id",
-      sourceSystem: "userportal",
-      status: "delivered",
-      checksum: "snapshot",
-    },
-    {
-      datasetId: "same-id",
-      sourceSystem: "adapter",
-      status: "delivered",
-      checksum: "snapshot",
-    },
-  ]);
-  runs.latestValidationReports.mockResolvedValue([
-    {
-      datasetId: "same-id",
-      checksum: "snapshot",
-      profile,
-      conforms: false,
-      report: "Missing mandatory fields",
-      runId: "validation-run",
-      checkedAt: new Date(),
-    },
-  ]);
-  const app = await buildApp(
-    {
-      ...config,
-      release8ValidationProfile: profile,
-      operationMode: "sync_only",
-    },
-    states,
-    fetchImpl as any,
-    runs,
-  );
-  try {
-    const response = await app.inject("/api/v1/monitoring");
-    expect(response.statusCode).toBe(200);
-    const body = response.json();
-    expect(body.operationMode).toBe("sync_only");
-    expect(body.deliveries[0]).toMatchObject({
-      status: "delivered",
-      compliance: { status: "failed" },
-    });
-    expect(body.deliveries[1]).toMatchObject({
-      status: "delivered",
-      compliance: { status: "not_assessed" },
-    });
-    expect(runs.latestValidationReports).toHaveBeenCalledWith(
-      ["same-id"],
-      "userportal",
-    );
-    expect(fetchImpl).not.toHaveBeenCalled();
-  } finally {
-    await app.close();
-  }
-});
-
-it("does not mix catalogue evidence with retained legacy source records", async () => {
-  const { states, runs, fetchImpl } = setup();
-  states.listRecent.mockResolvedValue(
-    ["userportal", "healthdata"].map((sourceSystem) => ({
-      datasetId: "shared",
-      sourceSystem,
-      status: "delivered",
-      checksum: "sum",
-    })),
-  );
-  runs.latestValidationReports.mockImplementation(
-    async (_ids: string[], source: string) => [
-      {
-        datasetId: "shared",
-        checksum: "sum",
-        profile: "trusted",
-        conforms: source === "healthdata",
-        checkedAt: new Date(),
-        runId: "test",
-      },
-    ],
-  );
-  const app = await buildApp(
-    { ...config, release8ValidationProfile: "trusted" },
-    states,
-    fetchImpl as any,
-    runs,
-  );
-  try {
-    const body = (await app.inject("/api/v1/monitoring")).json();
-    expect(body.deliveries.map((d: any) => d.compliance.status)).toEqual([
-      "failed",
-      "passed",
-    ]);
-    expect(fetchImpl).not.toHaveBeenCalled();
-  } finally {
-    await app.close();
-  }
 });
 
 it("groups delivery counts, reports sync health and lists deliveries needing attention", async () => {
@@ -303,7 +188,7 @@ it("groups delivery counts, reports sync health and lists deliveries needing att
   states.listByStatuses.mockResolvedValue([
     {
       datasetId: "https://example.org/d1",
-      sourceSystem: "userportal",
+      sourceSystem: "catalogue",
       status: "uncertain",
       operation: "create",
       retryCount: 1,
@@ -364,6 +249,48 @@ it("groups delivery counts, reports sync health and lists deliveries needing att
       overdue: false,
     });
     expect(body.health.lastCompletedRun).not.toHaveProperty("reports");
+    expect(fetchImpl).not.toHaveBeenCalled();
+  } finally {
+    await app.close();
+  }
+});
+
+it("looks up one catalogue dataset's delivery state without side effects", async () => {
+  const { states, runs, fetchImpl } = setup();
+  const catalogue = {
+    get: vi.fn(async (id: string) =>
+      id === "https://catalogue.example/dataset/1"
+        ? {
+            datasetId: id,
+            sourceSystem: "catalogue",
+            status: "delivered",
+            centralPlatformObjectId: "central-1",
+          }
+        : null,
+    ),
+  };
+  states.forSource = vi.fn(() => catalogue);
+  const app = await buildApp(config, states, fetchImpl as any, runs);
+  try {
+    const found = await app.inject(
+      `/api/v1/datasets/${encodeURIComponent("https://catalogue.example/dataset/1")}/status`,
+    );
+    expect(found.statusCode).toBe(200);
+    expect(found.headers["cache-control"]).toBe("no-store");
+    expect(found.json()).toMatchObject({
+      datasetId: "https://catalogue.example/dataset/1",
+      sourceSystem: "catalogue",
+      status: "delivered",
+      centralPlatformObjectId: "central-1",
+    });
+    expect(states.forSource).toHaveBeenCalledWith("catalogue");
+
+    const missing = await app.inject("/api/v1/datasets/unknown/status");
+    expect(missing.statusCode).toBe(404);
+    expect(missing.json()).toMatchObject({ error: "not_found" });
+
+    expect(states.withDatasetLock).not.toHaveBeenCalled();
+    expect(runs.create).not.toHaveBeenCalled();
     expect(fetchImpl).not.toHaveBeenCalled();
   } finally {
     await app.close();

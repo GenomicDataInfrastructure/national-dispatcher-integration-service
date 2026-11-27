@@ -7,7 +7,7 @@ import type { MetadataValidator } from "../validation/metadata-validator.js";
 import type { NationalDispatcherClient } from "../dispatcher/national-dispatcher-client.js";
 import type { OperationMode } from "../config/config.js";
 import { OPERATION_MODES } from "../domain/sync-run.js";
-import { CATALOGUE_PERSISTENCE_NAMESPACE } from "../domain/source-system.js";
+import { CATALOGUE_SOURCE } from "../domain/source-system.js";
 import { VALIDATION_TYPES, type ValidationType } from "../domain/validation.js";
 
 export const runOptionsSchema = z
@@ -44,7 +44,7 @@ export type RunContext = {
   dispatcher: NationalDispatcherClient;
   validator?: MetadataValidator | undefined;
   mode: OperationMode;
-  persistenceNamespace: typeof CATALOGUE_PERSISTENCE_NAMESPACE;
+  persistenceNamespace: typeof CATALOGUE_SOURCE;
   settings?: RunSettings;
 };
 export class InvalidRunOptionsError extends Error {}

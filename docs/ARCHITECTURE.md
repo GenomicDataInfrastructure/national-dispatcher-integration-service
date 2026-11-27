@@ -3,9 +3,9 @@
 
 # How the service works
 
-The National Dispatcher Integration Service sits between a metadata source (the
-GDI catalogue, or HDAB calling it directly) and the existing National
-Dispatcher. It submits **dataset metadata only**: it never transfers dataset
+The National Dispatcher Integration Service sits between a single metadata
+source, the catalogue RDF configured with `DATASET_CATALOGUE_RDF_URL`, and the
+existing National Dispatcher. It submits **dataset metadata only**: it never transfers dataset
 files and does not replace dispatcher or Central Platform behaviour.
 
 Its job is to turn "here is the current RDF for each dataset" into the right
@@ -19,10 +19,7 @@ For every setting mentioned here, see [CONFIGURATION.md](CONFIGURATION.md).
 
 ```mermaid
 flowchart LR
-  subgraph Sources
-    CAT[Catalogue RDF<br/>DATASET_CATALOGUE_RDF_URL]
-    HDAB[HDAB / API caller]
-  end
+  CAT[Catalogue RDF<br/>DATASET_CATALOGUE_RDF_URL]
   subgraph Service[Integration service]
     SCHED[Scheduler<br/>SYNC_SCHEDULE]
     API[HTTP API<br/>+ dashboard]
@@ -37,8 +34,6 @@ flowchart LR
 
   SCHED --> ORCH
   API --> ORCH
-  HDAB -->|POST/PUT/DELETE RDF| API
-  API --> DEL
   CAT -->|one download per run| ORCH
   ORCH --> VAL
   ORCH --> DEL
@@ -49,15 +44,10 @@ flowchart LR
   DEL -->|track + verify| ND
 ```
 
-There are two ways metadata enters the service:
-
-1. **Catalogue synchronization** (the main path). The service downloads the
-   whole catalogue, works out which datasets are new, changed or removed, and
-   delivers the differences. A run is started by the scheduler or by
-   `POST /api/v1/sync`.
-2. **Direct delivery API.** A caller such as HDAB sends one dataset's RDF to
-   `/api/v1/dataset-deliveries`. The same delivery logic is used, but there is
-   no catalogue and no automatic deletion.
+Metadata enters the service only through **catalogue synchronization**. The
+service downloads the whole catalogue, works out which datasets are new, changed
+or removed, and delivers the differences. A run is started by the scheduler or
+by `POST /api/v1/sync`. There is no endpoint for pushing a single dataset's RDF.
 
 ## Main components
 
@@ -112,8 +102,8 @@ There are two ways metadata enters the service:
 ## Delivering one dataset
 
 All delivery goes through the delivery service and is protected by a
-per-dataset PostgreSQL lock, so a scheduled run and an API call cannot work on
-the same dataset at the same time.
+per-dataset PostgreSQL lock, so two operations can never work on the same
+dataset at the same time.
 
 ```mermaid
 sequenceDiagram
@@ -217,19 +207,16 @@ report's profile matches `RELEASE8_VALIDATION_PROFILE`. Otherwise it shows
 
 ## HTTP API
 
-| Method and path                                    | Auth  | Purpose                                                                                                 |
-| -------------------------------------------------- | ----- | ------------------------------------------------------------------------------------------------------- |
-| `GET /`                                            | none  | Read-only dashboard (refreshes every 5 seconds).                                                        |
-| `GET /health`                                      | none  | Liveness: the process is up.                                                                            |
-| `GET /ready`                                       | none  | Readiness: PostgreSQL is reachable (503 otherwise).                                                     |
-| `GET /api/v1/monitoring`                           | none  | Data behind the dashboard: grouped counts, sync health, the attention list, deliveries and run history. |
-| `POST /api/v1/sync`                                | token | Start a full catalogue sync. Optional JSON body for per-run options.                                    |
-| `POST /api/v1/sync/dataset/:datasetId`             | token | Sync one dataset from the catalogue. No deletions.                                                      |
-| `GET /api/v1/sync/:runId`                          | none  | Run status, counters, reports and settings.                                                             |
-| `POST /api/v1/dataset-deliveries`                  | token | Direct create. `X-Dataset-ID` header, RDF body.                                                         |
-| `PUT /api/v1/dataset-deliveries/:datasetId`        | token | Direct update.                                                                                          |
-| `DELETE /api/v1/dataset-deliveries/:datasetId`     | token | Direct delete.                                                                                          |
-| `GET /api/v1/dataset-deliveries/:datasetId/status` | none  | Delivery state of one dataset.                                                                          |
+| Method and path                          | Auth  | Purpose                                                                                                 |
+| ---------------------------------------- | ----- | ------------------------------------------------------------------------------------------------------- |
+| `GET /`                                  | none  | Read-only dashboard (refreshes every 5 seconds).                                                        |
+| `GET /health`                            | none  | Liveness: the process is up.                                                                            |
+| `GET /ready`                             | none  | Readiness: PostgreSQL is reachable (503 otherwise).                                                     |
+| `GET /api/v1/monitoring`                 | none  | Data behind the dashboard: grouped counts, sync health, the attention list, deliveries and run history. |
+| `POST /api/v1/sync`                      | token | Start a full catalogue sync. Optional JSON body for per-run options.                                    |
+| `POST /api/v1/sync/dataset/:datasetId`   | token | Sync one dataset from the catalogue. No deletions.                                                      |
+| `GET /api/v1/sync/:runId`                | none  | Run status, counters, reports and settings.                                                             |
+| `GET /api/v1/datasets/:datasetId/status` | none  | Delivery state of one catalogue dataset (URL-encoded dataset URI). 404 if none is recorded.             |
 
 "Token" means `Authorization: Bearer <CONTROL_API_TOKEN>`. Every non-GET
 request needs it. If no token is configured, those requests return 503; a
@@ -237,8 +224,7 @@ wrong or missing token returns 401. GET endpoints are open, so put the service
 behind your normal access boundary if status data should be private.
 
 Common error responses: 400 invalid request or run options, 409 a sync is
-already running (or a delivery conflict such as an `uncertain` dataset), 422
-validation failed, 503 controls disabled or validator unavailable.
+already running, 503 controls disabled or validator unavailable.
 
 Request and response examples are in the [README](../README.md#api).
 
@@ -246,21 +232,20 @@ Request and response examples are in the [README](../README.md#api).
 
 All tables live in the schema named by `POSTGRES_SCHEMA`. Migrations in
 [src/persistence/postgres/migrations/](../src/persistence/postgres/migrations/)
-are applied at startup and recorded in `schema_migrations`.
+are applied at startup and recorded in `schema_migrations`. The whole schema is
+in `001_initial_schema.sql`; later schema changes go in new numbered files.
 
-- **`dataset_delivery_sync`**: one row per dataset and source. Holds the
+- **`dataset_delivery_sync`**: one row per catalogue dataset. Holds the
   checksum, dispatcher `databaseId`, Domibus message ID, Central Platform
   object ID, current status, retry count, last error and timestamps.
-  Catalogue datasets are stored under the source `userportal` (shown as
-  `catalogue` in the UI); direct API deliveries under `adapter`; old HealthData
-  records under `healthdata` (shown, but not reconciled).
+  Rows are stored under the source `catalogue`.
 - **`sync_runs`**: one row per run with mode, status, counters, resolved
   settings and per-dataset reports (validation findings, errors, in-flight notes).
 
 ## Concurrency guarantees
 
 - One run at a time per process (in-memory flag) and per database (advisory lock
-  `userportal-dataset-sync`).
+  `catalogue-dataset-sync`).
 - One operation at a time per dataset (per-dataset advisory lock).
 - Datasets are processed sequentially. A run with many stuck messages can take
   roughly _number of stuck datasets × `DISPATCHER_VERIFICATION_TIMEOUT_MS`_;

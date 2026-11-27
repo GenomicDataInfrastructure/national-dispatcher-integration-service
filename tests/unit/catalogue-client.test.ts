@@ -97,13 +97,3 @@ it("reports missing datasets and rejects unsuccessful requests", async () => {
     statusCode: 502,
   });
 });
-
-it("requires URI identifiers before reconciling existing delivery state", () => {
-  const client = new CatalogueClient(config);
-  expect(() =>
-    client.assertCompatibleDatasetIds(["https://example/known"]),
-  ).not.toThrow();
-  expect(() => client.assertCompatibleDatasetIds(["old-portal-id"])).toThrow(
-    "migrate it before catalogue synchronization",
-  );
-});

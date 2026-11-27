@@ -11,11 +11,13 @@ describe("SyncStateRepository", () => {
       query: vi.fn(async () => ({
         rows: [
           {
-            dataset_id: "d1",
+            source_system: "catalogue",
+            source_dataset_id: "d1",
             checksum: "sum",
             dispatcher_database_id: null,
             central_platform_object_id: "c1",
             correlation_id: null,
+            domibus_message_id: "msg-1",
             operation: "create",
             status: "delivered",
             retry_count: 0,
@@ -32,7 +34,9 @@ describe("SyncStateRepository", () => {
       "d1",
     );
     expect(state).toMatchObject({
+      sourceSystem: "catalogue",
       datasetId: "d1",
+      domibusMessageId: "msg-1",
       centralPlatformObjectId: "c1",
       status: "delivered",
     });
@@ -55,12 +59,12 @@ describe("SyncStateRepository", () => {
     expect(client.query).toHaveBeenNthCalledWith(
       1,
       "SELECT pg_advisory_lock(hashtextextended($1, 0))",
-      ["d1"],
+      ["catalogue:d1"],
     );
     expect(client.query).toHaveBeenNthCalledWith(
       2,
       "SELECT pg_advisory_unlock(hashtextextended($1, 0))",
-      ["d1"],
+      ["catalogue:d1"],
     );
     expect(client.query).not.toHaveBeenCalledWith("ROLLBACK");
     expect(client.release).toHaveBeenCalledOnce();

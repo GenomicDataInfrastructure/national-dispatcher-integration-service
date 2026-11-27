@@ -5,7 +5,7 @@
 
 This collection contains health, readiness, and source-to-dispatcher
 synchronization requests, plus a read-only direct National Dispatcher lookup
-by Domibus message ID. Other direct National Dispatcher and dataset-delivery
+by Domibus message ID. Other direct National Dispatcher
 requests are maintained outside this repository at
 `../national-dispatcher-integration-service-operator-collections/`.
 
