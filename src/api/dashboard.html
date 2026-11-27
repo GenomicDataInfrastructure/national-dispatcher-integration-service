@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Dataset operations · Status</title>
+    <link rel="stylesheet" href="/dashboard.css" />
+    <script src="/dashboard.js" defer></script>
+  </head>
+  <body>
+    <header>
+      <div class="brand">
+        <span class="mark">D</span
+        ><span>Dataset operations <small>Operations monitor</small></span>
+      </div>
+      <span class="readonly">Read-only access</span>
+    </header>
+    <main>
+      <div class="heading">
+        <div>
+          <p class="eyebrow">METADATA SOURCE → NATIONAL DISPATCHER</p>
+          <h1>Validation and delivery</h1>
+          <p class="muted">
+            Observe synchronization and dataset delivery. This dashboard cannot
+            change the dataset flow.
+          </p>
+        </div>
+        <div class="live">
+          <span class="dot"></span
+          ><span id="updated" role="status">Connecting…</span>
+        </div>
+      </div>
+      <div id="error" role="alert" hidden></div>
+      <section class="health" aria-label="Synchronization health">
+        <article id="health-last">
+          <p>Last completed sync</p>
+          <strong>—</strong><small></small>
+        </article>
+        <article id="health-active">
+          <p>Sync running now</p>
+          <strong>—</strong><small></small>
+        </article>
+        <article id="health-next">
+          <p>Next scheduled sync</p>
+          <strong>—</strong><small></small>
+        </article>
+        <article id="health-domibus">
+          <p>Waiting on Domibus</p>
+          <strong>—</strong><small></small>
+        </article>
+      </section>
+      <aside class="validation-context">
+        <strong id="delivery-context"
+          >Delivery and compliance are separate checks.</strong
+        >
+        <p id="compliance-context">
+          Release 8 compliance: Not assessed until a matching validation result
+          is recorded.
+        </p>
+      </aside>
+      <section class="metrics" aria-label="All persisted delivery records">
+        <article>
+          <p>Tracked datasets</p>
+          <strong id="total">—</strong>
+          <small>All sources</small>
+        </article>
+        <article>
+          <p>Delivered</p>
+          <strong id="delivered">—</strong>
+          <small>Verified on the Central Platform</small>
+        </article>
+        <article>
+          <p>In progress</p>
+          <strong id="pending">—</strong>
+          <small>Being sent, with Domibus, or awaiting verification</small>
+        </article>
+        <article>
+          <p>Needs attention</p>
+          <strong id="attention">—</strong>
+          <small>Failed, uncertain, or stopped by Domibus</small>
+        </article>
+      </section>
+      <p class="note">
+        Counts cover all stored delivery records; deleted datasets are not
+        counted. Validation-only results appear in sync history.
+      </p>
+      <section class="panel attention-panel" id="attention-panel" hidden>
+        <div class="section-head">
+          <div>
+            <h2>Needs attention</h2>
+            <p id="attention-summary">
+              Deliveries that failed, may need manual reconciliation, or were
+              stopped by Domibus
+            </p>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Dataset / source</th>
+                <th>Status</th>
+                <th>Last error</th>
+                <th>What to do</th>
+                <th>Last attempt</th>
+              </tr>
+            </thead>
+            <tbody id="attention-rows"></tbody>
+          </table>
+        </div>
+      </section>
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <h2>Synchronization history</h2>
+            <p>Run outcomes and validation reports</p>
+          </div>
+          <span class="tag">Refreshes every 5 seconds</span>
+        </div>
+        <p class="note inset">
+          Completed means processing finished; a completed run can contain
+          failed datasets. In flight means Domibus is still delivering (for
+          example WAITING_FOR_RETRY); tracking resumes on the next run. Counters
+          are finalized when a run finishes.
+        </p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Started / run ID</th>
+                <th>Mode</th>
+                <th>Status</th>
+                <th>Seen</th>
+                <th>Created</th>
+                <th>Updated</th>
+                <th>Skipped</th>
+                <th>Deleted</th>
+                <th>Failed</th>
+                <th>In flight</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody id="runs">
+              <tr>
+                <td colspan="11">Loading history…</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pager">
+          <button id="runs-prev" type="button" disabled>← Newer</button
+          ><span id="runs-page">Page 1</span
+          ><button id="runs-next" type="button" disabled>Older →</button>
+        </div>
+      </section>
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <h2>Dataset deliveries</h2>
+            <p>Latest recorded state, ordered by most recent activity</p>
+          </div>
+          <div class="filters">
+            <label
+              >Status<select id="status">
+                <option value="">All statuses</option>
+                <option>delivered</option>
+                <option>pending</option>
+                <option>creating</option>
+                <option>updating</option>
+                <option>deleting</option>
+                <option>failed</option>
+                <option>uncertain</option>
+                <option>READY_TO_SEND</option>
+                <option>SEND_ENQUEUED</option>
+                <option>SEND_IN_PROGRESS</option>
+                <option>WAITING_FOR_RECEIPT</option>
+                <option>ACKNOWLEDGED</option>
+                <option>ACKNOWLEDGED_WITH_WARNING</option>
+                <option>SEND_ATTEMPT_FAILED</option>
+                <option>WAITING_FOR_RETRY</option>
+                <option>SEND_FAILURE</option>
+                <option>NOT_FOUND</option>
+                <option>DELETED</option>
+              </select></label
+            >
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Dataset / source</th>
+                <th>Delivery status</th>
+                <th>Release 8 assessment</th>
+                <th>Operation</th>
+                <th>Last attempt</th>
+                <th>Last success</th>
+                <th>Retries</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody id="deliveries">
+              <tr>
+                <td colspan="8">Loading deliveries…</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pager">
+          <button id="states-prev" type="button" disabled>← Newer</button
+          ><span id="states-page">Page 1</span
+          ><button id="states-next" type="button" disabled>Older →</button>
+        </div>
+      </section>
+      <footer>
+        Delivery reflects the configured dispatcher’s verification response. It
+        does not certify Health DCAT-AP compliance.
+      </footer>
+    </main>
+    <dialog id="detail-dialog" aria-labelledby="detail-title">
+      <div class="dialog-head">
+        <h2 id="detail-title">Dataset details</h2>
+        <button id="detail-close" type="button" aria-label="Close details">
+          Close ×
+        </button>
+      </div>
+      <div id="detail-content"></div>
+    </dialog>
+  </body>
+</html>

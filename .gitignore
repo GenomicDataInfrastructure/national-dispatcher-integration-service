@@ -1,0 +1,17 @@
+node_modules/
+dist/
+coverage/
+.env
+.env.*
+!.env.example
+.DS_Store
+
+.venv/
+__pycache__/
+
+# Offline Release 8 artifacts generated from the pinned upstream resources.
+validator/release-8/*.trig
+
+# Bruno: personal environments (copy Local.example.bru to Local.bru)
+bruno/environments/*.bru
+!bruno/environments/*.example.bru

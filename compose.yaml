@@ -1,0 +1,29 @@
+# SPDX-FileCopyrightText: 2026 PNED G.I.E.
+# SPDX-License-Identifier: Apache-2.0
+
+services:
+  service:
+    build: .
+    env_file: .env
+    environment:
+      HOST: 0.0.0.0
+      POSTGRES_URL: ${COMPOSE_POSTGRES_URL:-postgresql://dataset_delivery:change-me@postgres:5432/dataset_delivery}
+    ports: ["127.0.0.1:8080:8080"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+  postgres:
+    image: postgres:17-alpine
+    ports: ["127.0.0.1:5433:5432"]
+    environment:
+      POSTGRES_DB: dataset_delivery
+      POSTGRES_USER: dataset_delivery
+      POSTGRES_PASSWORD: change-me
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dataset_delivery"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes: ["postgres-data:/var/lib/postgresql/data"]
+volumes:
+  postgres-data:

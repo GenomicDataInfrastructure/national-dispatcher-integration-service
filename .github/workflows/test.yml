@@ -1,18 +1,27 @@
-# SPDX-FileCopyrightText: 2024 PNED G.I.E.
-#
-# SPDX-License-Identifier: Apache-2.0
+name: Test
 
-name: Run Tests
+on:
+  push:
+  pull_request:
 
-on: push
+permissions:
+  contents: read
 
-# TODO add here any kind of test you may need
 jobs:
-  test:
+  validate:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
     steps:
       - uses: actions/checkout@v4
-      - uses: fsfe/reuse-action@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Create validator virtual environment
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install -r validator/requirements.txt
+      - run: npm ci
+      - run: npm run validate

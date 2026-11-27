@@ -1,0 +1,6 @@
+{
+  "version": "1",
+  "name": "Dataset Delivery Integration Service",
+  "type": "collection",
+  "ignore": ["node_modules", ".git"]
+}

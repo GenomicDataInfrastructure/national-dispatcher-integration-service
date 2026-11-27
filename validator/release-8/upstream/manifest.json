@@ -1,0 +1,307 @@
+{
+  "source": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/",
+  "license": "CC-BY-4.0; European Union",
+  "profile": "health-dcat-ap-release-8:sha256:4aca291c4a193a8fff332f2a00d227d9801e77332f4c269a97b581e81dd4e479",
+  "files": [
+    {
+      "file": "catalogue/ADMS_SKOS_v1.00.rdf",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/catalogue/ADMS_SKOS_v1.00.rdf",
+      "sha256": "18f5c694fd53f56d081f69b865e66c4bf57ad61ad2779e079190103036f0babc",
+      "bytes": 48072
+    },
+    {
+      "file": "catalogue/access-right.rdf",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/catalogue/access-right.rdf",
+      "sha256": "4b8066d73ad5d8cabcfa872ed00548d2d7eb69b96a43f55ca208a270c1f2f74c",
+      "bytes": 19407
+    },
+    {
+      "file": "catalogue/adms.ttl",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/catalogue/adms.ttl",
+      "sha256": "634d8bfa4a9854c47cc4ebd1416362f6f05bf1bebb507d670a430ae838c1c8d2",
+      "bytes": 11134
+    },
+    {
+      "file": "catalogue/coding-system.rdf",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/catalogue/coding-system.rdf",
+      "sha256": "73e08fcdb34a5690445e4aa1f5650c69245caba42472f1df6ac72e7eb1d98cb1",
+      "bytes": 117465
+    },
+    {
+      "file": "catalogue/continents.rdf",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/catalogue/continents.rdf",
+      "sha256": "ade16c177069d2f2f36d029be6eab82d195865586a702685b9a7f9b61e7ec2fb",
+      "bytes": 13094
+    },
+    {
+      "file": "catalogue/corporatebodies.rdf",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/catalogue/corporatebodies.rdf",
+      "sha256": "0d6c3ca1d5e72352bb12c6138d7e2ab11de6dc8c01815266d2ed247dfec03496",
+      "bytes": 9066895
+    },
+    {
+      "file": "catalogue/countries.rdf",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/catalogue/countries.rdf",
+      "sha256": "e216fc41a0b146476256a1b8f8f220d4c6189cb1e1e6ab21cd040e51fbd8abca",
+      "bytes": 3059139
+    },
+    {
+      "file": "catalogue/csvw.ttl",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/catalogue/csvw.ttl",
+      "sha256": "ad9296569d3203c771a0ca51ac7c4180d8ad2bdd85adec5c7881555ddb409f3a",
+      "bytes": 26702
+    },
+    {
+      "file": "catalogue/data-theme.rdf",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/catalogue/data-theme.rdf",
+      "sha256": "93f8632c883fd1f9848fc84d562587043146bd6a46a1f8c5fc46b8010a8d277f",
+      "bytes": 169904
+    },
+    {
+      "file": "catalogue/dataset-types.rdf",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/catalogue/dataset-types.rdf",
+      "sha256": "19d4dacc1ba3acb5c4d40e6b6ceebfe4d9875d8da9dd2d3bcdd3c846763652ed",
+      "bytes": 73991
+    },
+    {
+      "file": "catalogue/dcat2.ttl",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/catalogue/dcat2.ttl",
+      "sha256": "4f7eb189dfbabfdb1d0ef20936ca3d96462e98ed4495bed436c127c629e1b8bc",
+      "bytes": 165749
+    },
+    {
+      "file": "catalogue/distribution-status.rdf",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/catalogue/distribution-status.rdf",
+      "sha256": "889c640b8343302146b09f5827f00507bf5e0329c104811ff67dd13dca7ad23c",
+      "bytes": 23910
+    },
+    {
+      "file": "catalogue/dqv.ttl",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/catalogue/dqv.ttl",
+      "sha256": "cc333223d13c663e027456ea43b15a63c1a25505bc752599953f380420573863",
+      "bytes": 12246
+    },
+    {
+      "file": "catalogue/dublin_core_terms.ttl",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/catalogue/dublin_core_terms.ttl",
+      "sha256": "075287f7774f59bf450d0d464bf5e4d3c101358da36b061ab7a45140d96feaf8",
+      "bytes": 44157
+    },
+    {
+      "file": "catalogue/eli.rdf",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/catalogue/eli.rdf",
+      "sha256": "35bba63a0945e089817ddeb25512d31bfa101344282a4dfbce58e92ad756111c",
+      "bytes": 166991
+    },
+    {
+      "file": "catalogue/filetypes.rdf",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/catalogue/filetypes.rdf",
+      "sha256": "f8e53ef048ede8cc64bc21957beb3d52f7080c7e475a4260801434d17ede8a31",
+      "bytes": 471763
+    },
+    {
+      "file": "catalogue/frequencies.rdf",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/catalogue/frequencies.rdf",
+      "sha256": "c631775bd137d8fb1b3c67eb9b549dd2f38fd96a68f34d70d7ff9b8feb270df7",
+      "bytes": 156607
+    },
+    {
+      "file": "catalogue/health-activity.rdf",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/catalogue/health-activity.rdf",
+      "sha256": "5358bb9dc0d1d2e65ae34af5e48ee96fd58199562df046ca3f64272b4fa23775",
+      "bytes": 107662
+    },
+    {
+      "file": "catalogue/health-theme.rdf",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/catalogue/health-theme.rdf",
+      "sha256": "e4f829c88e33d1d22853c66d00c957dd823eb57faaf5766669361fccccca4733",
+      "bytes": 78190
+    },
+    {
+      "file": "catalogue/healthcategories.rdf",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/catalogue/healthcategories.rdf",
+      "sha256": "39d8144b32f33287e8bd742290db70160f7d9142fe6437128d769a9cde54f0bf",
+      "bytes": 83285
+    },
+    {
+      "file": "catalogue/index.rdf",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/catalogue/index.rdf",
+      "sha256": "3d859b5d92a2c3d041545d014fa826f682ca06d056af8c7b31e32d930abf2bc5",
+      "bytes": 44209
+    },
+    {
+      "file": "catalogue/languages.rdf",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/catalogue/languages.rdf",
+      "sha256": "5e05e710b20c0ecab705e1ab90b093bdffc8e5f6c244fd13a03dfdaa0cabdd1a",
+      "bytes": 14020623
+    },
+    {
+      "file": "catalogue/locn.ttl",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/catalogue/locn.ttl",
+      "sha256": "b6661139db549f0a277a4b1842ed6cb25ee6980f89291f3629b786213de0258e",
+      "bytes": 20348
+    },
+    {
+      "file": "catalogue/m8g.ttl",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/catalogue/m8g.ttl",
+      "sha256": "9b903b8f7904081e0be73cba290646580b2a9477d7bacdf630beb95493bdcd94",
+      "bytes": 59922
+    },
+    {
+      "file": "catalogue/mdr-vocabularies.shape.ttl",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/catalogue/mdr-vocabularies.shape.ttl",
+      "sha256": "c7b44e735f44107079ce07b93c0deff35ea28c32895bb5588323412e0bc90170",
+      "bytes": 17443
+    },
+    {
+      "file": "catalogue/ns.ttl",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/catalogue/ns.ttl",
+      "sha256": "2442baf3d07d660910a0e24dd96b1efe1ec22cb26d12cdfd415195da91b43a0c",
+      "bytes": 32183
+    },
+    {
+      "file": "catalogue/places.rdf",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/catalogue/places.rdf",
+      "sha256": "5e0c6dfa43b1ab394d52e2e354b4fc1832a45aff83ec1ff287a77d4fa9fbe554",
+      "bytes": 7294515
+    },
+    {
+      "file": "catalogue/planned-availability.rdf",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/catalogue/planned-availability.rdf",
+      "sha256": "e8f509f207f90b5934bb690a7d07631b7e01b8af03185f97f19bde3c5a2cb28b",
+      "bytes": 15896
+    },
+    {
+      "file": "catalogue/prov-o.ttl",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/catalogue/prov-o.ttl",
+      "sha256": "7d203989f67b38bca572253942acc5a1bf24ce3ccfece16f072dcb4be2b79a96",
+      "bytes": 68795
+    },
+    {
+      "file": "catalogue/publisher-type.rdf",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/catalogue/publisher-type.rdf",
+      "sha256": "de53acfa49e88ff64d0b6b39781070860d2bdc02d14ffb3e9f05b238f7b8cfac",
+      "bytes": 111992
+    },
+    {
+      "file": "catalogue/range.ttl",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/catalogue/range.ttl",
+      "sha256": "e4c42ebf74e0e0fdbb542bb85ce4628013a1ed810da08471186a5df32ed8d108",
+      "bytes": 12489
+    },
+    {
+      "file": "catalogue/schema.ttl",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/catalogue/schema.ttl",
+      "sha256": "53c065de889903257cecab7b41dca4e65073df8a1200750578ad86bb2885ca66",
+      "bytes": 1065995
+    },
+    {
+      "file": "catalogue/shapes.ttl",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/catalogue/shapes.ttl",
+      "sha256": "0462c70f9a8db33e859aa986656e4411dfdad5fe42d9ab672abca6595c22bf85",
+      "bytes": 21664
+    },
+    {
+      "file": "catalogue/shapes_recommended.ttl",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/catalogue/shapes_recommended.ttl",
+      "sha256": "74c801288209c2b3c9a5c06ef1fbdbe1d155020a12e3f7ccb1fa71edea3c786d",
+      "bytes": 11577
+    },
+    {
+      "file": "catalogue/spdx-ontology.owl.rdf",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/catalogue/spdx-ontology.owl.rdf",
+      "sha256": "206aac1eba354f9b2faf28e978af6ef2e560af6224bef8424c1a8a9aeba91d48",
+      "bytes": 191841
+    },
+    {
+      "file": "catalogue/standard.rdf",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/catalogue/standard.rdf",
+      "sha256": "2dc134e8bdb1940bfcdc823c52ce276676470ff584946ac3400917ba27c126b6",
+      "bytes": 81091
+    },
+    {
+      "file": "catalogue/time.ttl",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/catalogue/time.ttl",
+      "sha256": "251bd6970b0d7a5efa97ff681afe81a297df85deab3d860fa4f8eeba72d8f16c",
+      "bytes": 101486
+    },
+    {
+      "file": "config.properties",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/config.properties",
+      "sha256": "f5ba3daf385e34fe22be52a1d97d91e3f2ae2c68a4cd20196ad88f50a8d88f4e",
+      "bytes": 8110
+    },
+    {
+      "file": "controlled-vocabularies/mdr-vocabularies.shape.ttl",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/controlled-vocabularies/mdr-vocabularies.shape.ttl",
+      "sha256": "da998b04c76c863d74dd6f5f67414815cebdb6cf056fe0b75f61c0dcebc2ed34",
+      "bytes": 25870
+    },
+    {
+      "file": "deprecated/deprecateduris.ttl",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/deprecated/deprecateduris.ttl",
+      "sha256": "a0094d2669228a1d3744dbbf99560e6f4dc221485f8d08fee993a8324c57dc4d",
+      "bytes": 2654
+    },
+    {
+      "file": "imports/imports.ttl",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/imports/imports.ttl",
+      "sha256": "6c4668174bfb0f7993eb26ea2f316666065365546be64deef8c5653b0958e96e",
+      "bytes": 1981
+    },
+    {
+      "file": "imports/mdr_imports.ttl",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/imports/mdr_imports.ttl",
+      "sha256": "e77d238fa25a8b97495e835e9a592a023bfaa7b41e4657ff63714f4772f683f3",
+      "bytes": 2277
+    },
+    {
+      "file": "ranges/range.ttl",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/ranges/range.ttl",
+      "sha256": "819e118441efaf0221a090ac080e92735112239bf88a2acb08b9e8361711418a",
+      "bytes": 4830
+    },
+    {
+      "file": "recommended/non-public-shapes_recommended.ttl",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/recommended/non-public-shapes_recommended.ttl",
+      "sha256": "f8b190a6f082010c71e973a521634aad020a6a57e6d43d88b9ff8bd31e064e48",
+      "bytes": 5184
+    },
+    {
+      "file": "recommended/public-shapes_recommended.ttl",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/recommended/public-shapes_recommended.ttl",
+      "sha256": "d576682e0a2ffadc986e67e1c602fd1c5e59aac0df234d0903f404ebb0a69503",
+      "bytes": 4391
+    },
+    {
+      "file": "recommended/restricted-shapes_recommended.ttl",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/recommended/restricted-shapes_recommended.ttl",
+      "sha256": "0db61297b23c052ba9d21bf43d7a022e2f57488d623709af0102f017a25a7abd",
+      "bytes": 4401
+    },
+    {
+      "file": "shapes/graph-guard.ttl",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/shapes/graph-guard.ttl",
+      "sha256": "0df9d8580c584edac0af3829464d5a30ed549320a27b68be7314ec9d35d6d8e3",
+      "bytes": 943
+    },
+    {
+      "file": "shapes/non-public-shapes.ttl",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/shapes/non-public-shapes.ttl",
+      "sha256": "a3a437940302d3915042b986b0885c73f56f16ea2f6af66920e3cc13454adf75",
+      "bytes": 19871
+    },
+    {
+      "file": "shapes/public-shapes.ttl",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/shapes/public-shapes.ttl",
+      "sha256": "64865de17c1e02995faafc5277b6879aad09ee65e9779b3ed6c5af63b8b17a48",
+      "bytes": 19029
+    },
+    {
+      "file": "shapes/restricted-shapes.ttl",
+      "url": "https://data.health.europa.eu/healthdcat-ap/releases/release-8/html/shacl/HealthDCAT-AP_validator/config/rdf-validator/ehds/shapes/restricted-shapes.ttl",
+      "sha256": "f3bb4d39502d46229eeb7d3de87741e02bc5bd8384a8ce46a78e00c26b109e19",
+      "bytes": 18921
+    }
+  ]
+}

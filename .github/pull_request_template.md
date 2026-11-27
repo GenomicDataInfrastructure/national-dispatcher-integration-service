@@ -4,7 +4,7 @@
 
 ## 🚀 Pull Request Checklist
 
-- **Title:** 
+- **Title:**
   - `[ ]` A brief, descriptive title for the changes.
 
 - **Description:**

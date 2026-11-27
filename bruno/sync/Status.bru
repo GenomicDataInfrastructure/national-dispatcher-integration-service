@@ -1,0 +1,30 @@
+meta {
+  name: Get Sync Run
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/v1/sync/{{runId}}
+  body: none
+  auth: none
+}
+
+tests {
+  test("sync-only run status returned", function () {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody().mode).to.equal("sync_only");
+  });
+  
+  test("run has no reported failures", function () {
+    expect(res.getBody().status).not.to.equal("failed");
+    expect(res.getBody().datasetsFailed).to.equal(0);
+  });
+}
+
+docs {
+  Run Sync One Dataset first to capture runId. Repeat this request until status
+  is completed or failed. Passing tests while queued/running do not prove completion.
+  Inspect datasetsCreated, datasetsUpdated, datasetsSkipped, datasetsFailed,
+  error and reports. A completed run can still contain failed datasets.
+}
