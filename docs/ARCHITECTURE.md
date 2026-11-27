@@ -51,19 +51,20 @@ by `POST /api/v1/sync`. There is no endpoint for pushing a single dataset's RDF.
 
 ## Main components
 
-| Component              | Code                                                                                            | Responsibility                                                                         |
-| ---------------------- | ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| Startup                | [src/server.ts](../src/server.ts)                                                               | Loads config, connects to PostgreSQL, applies migrations, starts the HTTP server.      |
-| Wiring                 | [src/app.ts](../src/app.ts)                                                                     | Builds the Fastify app, checks validator config, registers routes and the scheduler.   |
-| Config                 | [src/config/config.ts](../src/config/config.ts)                                                 | Reads and validates environment variables; startup fails on invalid values.            |
-| Scheduler              | [src/scheduler/sync-scheduler.ts](../src/scheduler/sync-scheduler.ts)                           | Checks the cron expression every second and starts a run on a matching minute.         |
-| Orchestrator           | [src/application/sync-orchestrator.ts](../src/application/sync-orchestrator.ts)                 | Runs one sync: fetch catalogue, validate, deliver, delete, record the run.             |
-| Catalogue client       | [src/catalogue/](../src/catalogue/)                                                             | Downloads the catalogue RDF and extracts each `dcat:Dataset` with its linked metadata. |
-| Validator              | [src/validation/](../src/validation/)                                                           | Checks metadata against SHACL rules, either locally (pySHACL) or via the ITB API.      |
-| Delivery service       | [src/application/dataset-delivery-service.ts](../src/application/dataset-delivery-service.ts)   | Create/update/delete one dataset safely, including resume after a crash or timeout.    |
-| Dispatcher client      | [src/dispatcher/national-dispatcher-client.ts](../src/dispatcher/national-dispatcher-client.ts) | HTTP calls to the National Dispatcher: submit, track Domibus status, verify.           |
-| Persistence            | [src/persistence/postgres/](../src/persistence/postgres/)                                       | Delivery state per dataset, sync run history, advisory locks, migrations.              |
-| HTTP API and dashboard | [src/api/](../src/api/)                                                                         | Control endpoints (token protected), status/monitoring endpoints, read-only dashboard. |
+| Component              | Code                                                                                            | Responsibility                                                                                     |
+| ---------------------- | ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Startup                | [src/server.ts](../src/server.ts)                                                               | Loads config, connects to PostgreSQL, applies migrations, starts the HTTP server.                  |
+| Wiring                 | [src/app.ts](../src/app.ts)                                                                     | Builds the Fastify app, checks validator config, registers routes and the scheduler.               |
+| Config                 | [src/config/config.ts](../src/config/config.ts)                                                 | Reads and validates environment variables; startup fails on invalid values.                        |
+| Scheduler              | [src/scheduler/sync-scheduler.ts](../src/scheduler/sync-scheduler.ts)                           | Checks the cron expression every second and starts a run on a matching minute.                     |
+| Orchestrator           | [src/application/sync-orchestrator.ts](../src/application/sync-orchestrator.ts)                 | Runs one sync: fetch catalogue, validate, deliver, delete, record the run.                         |
+| Catalogue client       | [src/catalogue/](../src/catalogue/)                                                             | Downloads the catalogue RDF and extracts each `dcat:Dataset` with its linked metadata.             |
+| Validator              | [src/validation/](../src/validation/)                                                           | Checks metadata against SHACL rules, either locally (pySHACL) or via the ITB API.                  |
+| Delivery service       | [src/application/dataset-delivery-service.ts](../src/application/dataset-delivery-service.ts)   | Create/update/delete one dataset safely, including resume after a crash or timeout.                |
+| Dispatcher client      | [src/dispatcher/national-dispatcher-client.ts](../src/dispatcher/national-dispatcher-client.ts) | HTTP calls to the National Dispatcher: submit, track Domibus status, verify.                       |
+| Persistence            | [src/persistence/postgres/](../src/persistence/postgres/)                                       | Delivery state per dataset, sync run history, advisory locks, migrations.                          |
+| Sync health            | [src/application/sync-health.ts](../src/application/sync-health.ts)                             | Builds the dashboard summaries: grouped delivery counts, sync health and the needs-attention list. |
+| HTTP API and dashboard | [src/api/](../src/api/)                                                                         | Control endpoints (token protected), status/monitoring endpoints, read-only dashboard.             |
 
 ## What happens during a sync run
 

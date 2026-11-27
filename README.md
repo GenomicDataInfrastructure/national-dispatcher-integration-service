@@ -17,11 +17,22 @@ the notices under `validator/release-8/` for details.
 
 ## Read-only dashboard and operator access
 
-Open `http://localhost:8080/` to view delivery counts, paginated synchronization
-history, per-dataset state, timestamps, and error/validation reports. It refreshes
-every five seconds. Source/status filters and pagination only read data. Counts
-cover all persisted delivery records, and removed records are excluded. Run
-counters are finalized at completion; a completed run can contain failed datasets.
+Open `http://localhost:8080/` to view the dashboard. It refreshes every five
+seconds and shows:
+
+- **Sync health:** time since the last completed sync (flagged when it is more
+  than two schedule intervals overdue), whether a sync is running, when the next
+  scheduled sync is due, and how many messages are waiting on Domibus.
+- **Delivery counts** grouped as delivered, in progress and needs attention; the
+  groups always add up to the total.
+- **Needs attention:** failed, uncertain and Domibus-stopped deliveries with their
+  last error and what to do, uncertain ones first.
+- Paginated synchronization history, per-dataset state, timestamps, and
+  error/validation reports.
+
+The status filter and pagination only read data. Counts cover all persisted
+delivery records, and removed records are excluded. Run counters are finalized
+at completion; a completed run can contain failed datasets.
 
 Dashboard and status GET endpoints require no control token. Deploy them behind
 your normal access boundary if metadata/status information should be private.
@@ -33,8 +44,7 @@ server configuration and is independent of dashboard viewers.
 
 Configure a random token of at least 32 characters in server-side `.env` (generate
 one with `openssl rand -hex 32`). Keep it out of browser code, URLs, and shared
-collections. Existing API callers must be updated to send this token. The token
-is distinct from the dispatcher API key and is redacted from request logs.
+collections. The token is distinct from the dispatcher API key and is redacted from request logs.
 
 For manual operations, load your local `.env` into your operator terminal first:
 
@@ -58,7 +68,8 @@ asynchronously (the dispatcher API key is read only from server configuration):
 
 ```bash
 curl -H "Authorization: Bearer $CONTROL_API_TOKEN" -X POST http://localhost:8080/api/v1/sync
-curl -H "Authorization: Bearer $CONTROL_API_TOKEN" -X POST http://localhost:8080/api/v1/sync/dataset/dataset-123
+# Dataset IDs are full dataset URIs, URL-encoded in the path
+curl -H "Authorization: Bearer $CONTROL_API_TOKEN" -X POST http://localhost:8080/api/v1/sync/dataset/https%3A%2F%2Fcatalogue.example%2Fdataset%2F1
 curl http://localhost:8080/api/v1/sync/00000000-0000-0000-0000-000000000000
 ```
 
@@ -169,9 +180,6 @@ Responses include the run's resolved `settings`; `GET /api/v1/sync/:runId` and t
 dashboard retain these settings even after service defaults change. Per-dataset
 reports retain the actual selected access level and ruleset profile/hash.
 
-`DATASET_CATALOGUE_RDF_URL` is the sole metadata source for synchronization.
-Scheduling uses `SYNC_ENABLED` and `SYNC_SCHEDULE`.
-
 ## Synchronization guarantees
 
 - SHA-256 checksum equality skips an unchanged delivery.
@@ -214,18 +222,18 @@ findings remains a failure.
 
 `conforms` records the application's outcome under this policy;
 `validatorConforms` preserves the engine's original strict SHACL verdict.
-The original report is preserved. Existing saved run outcomes and counts are
-unchanged; rerun validation to apply the policy to old results.
+The original report is preserved.
 
 ## Validation-only synchronization
 
 For optional remote validation with `VALIDATION_MODE=itb`, set `METADATA_VALIDATOR_URL`
 to the ITB validation endpoint. The endpoint must apply your agreed SHACL rules;
-this service does not bundle Health DCAT-AP Release 8 rules or certify compliance itself.
+this service does not certify compliance itself. To validate locally instead, see
+[Bundled metadata validator](#bundled-metadata-validator).
 
 ```bash
 curl -H "Authorization: Bearer $CONTROL_API_TOKEN" -X POST 'http://localhost:8080/api/v1/sync?mode=validate_only'
-curl -H "Authorization: Bearer $CONTROL_API_TOKEN" -X POST 'http://localhost:8080/api/v1/sync/dataset/dataset-123?mode=validate_only'
+curl -H "Authorization: Bearer $CONTROL_API_TOKEN" -X POST 'http://localhost:8080/api/v1/sync/dataset/https%3A%2F%2Fcatalogue.example%2Fdataset%2F1?mode=validate_only'
 curl http://localhost:8080/api/v1/sync/RUN_ID
 ```
 
@@ -266,7 +274,7 @@ Set `METADATA_VALIDATOR_PROFILE` only to identify the actual rules being run.
 
 `validator/example-shapes.ttl` is a title-only demonstration for local smoke tests;
 it is **not** Health DCAT-AP Release 8 validation. No production shapes are enabled
-by default. An offline Release 8 development profile is now available under
+by default. An offline Release 8 development profile is available under
 [`validator/release-8`](validator/release-8/README.md). It preserves the official
 resources and builds separate public, non-public and restricted bundles with an
 explicit, separately identified pySHACL compatibility correction. Run
@@ -398,9 +406,10 @@ set +a
 curl -H "Authorization: Bearer $CONTROL_API_TOKEN" -X POST 'http://localhost:8080/api/v1/sync?mode=validate_only'
 ```
 
-Use `/api/v1/sync/dataset/DATASET_ID?mode=validate_only` for a single dataset.
-Validation-only runs do not deliver anything. Normal delivery sync remains
-separate and does not automatically invoke this validator or gate submissions.
+Use `/api/v1/sync/dataset/<URL-encoded dataset URI>?mode=validate_only` for a
+single dataset. Validation-only runs do not deliver anything. With
+`OPERATION_MODE=validate_and_sync`, delivery runs validate each dataset with the
+configured validator and skip those that fail; `sync_only` runs do not validate.
 The read-only dashboard displays assessments when the report checksum matches
 the delivery snapshot; expand details for the validation findings.
 
