@@ -26,13 +26,6 @@ const optionalString = z.preprocess(
   z.string().min(1).optional(),
 );
 const envSchema = z.object({
-  METADATA_SOURCES_JSON: z
-    .string()
-    .optional()
-    .refine((value) => value === undefined, {
-      message:
-        "METADATA_SOURCES_JSON was removed; configure DATASET_CATALOGUE_RDF_URL",
-    }),
   DATASET_CATALOGUE_RDF_URL: optionalUrl,
   CONTROL_API_TOKEN: z.preprocess(
     (value) => (value === "" ? undefined : value),

@@ -43,13 +43,13 @@ describe("Release 8 assessment", () => {
         .status,
     ).toBe("failed");
   });
-  it("does not reuse a pass after metadata changes or from legacy results without a checksum", () => {
+  it("does not reuse a pass after metadata changes or from results without a checksum", () => {
     expect(complianceState("new-checksum", evidence, profile).status).toBe(
       "outdated",
     );
-    const legacy = { ...evidence };
-    delete legacy.checksum;
-    expect(complianceState("rdf-checksum", legacy, profile).status).toBe(
+    const unchecked = { ...evidence };
+    delete unchecked.checksum;
+    expect(complianceState("rdf-checksum", unchecked, profile).status).toBe(
       "outdated",
     );
     expect(complianceState(null, evidence, profile).status).toBe("outdated");

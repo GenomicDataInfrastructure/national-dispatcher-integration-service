@@ -12,9 +12,7 @@ describe("sync run operation modes", () => {
     ["validate_and_sync", "", "validate_and_sync"],
     ["validate_only", "", "validate_only"],
     ["validate_and_sync", "?mode=validate_only", "validate_only"],
-    ["validate_and_sync", "?mode=validate", "validate_only"],
-    ["validate_only", "?mode=deliver", "validate_only"],
-    ["validate_and_sync", "?mode=deliver", "validate_and_sync"],
+    ["sync_only", "?mode=validate_only", "validate_only"],
   ] as const)(
     "records %s with query '%s' as %s",
     async (configured, query, expected) => {
@@ -60,4 +58,33 @@ describe("sync run operation modes", () => {
       }
     },
   );
+
+  it.each([
+    ["?mode=validate", undefined],
+    ["?mode=deliver", undefined],
+    ["?mode=sync_only", undefined],
+    ["?mode=validate_only", { operationMode: "validate_and_sync" }],
+  ])("rejects %s with body %j before creating a run", async (query, body) => {
+    const runs: any = { create: vi.fn() };
+    const orchestrator = new SyncOrchestrator(
+      {} as any,
+      {} as any,
+      runs,
+      {} as any,
+      { validate: vi.fn() } as any,
+    );
+    const app = Fastify();
+    await registerSyncRoutes(app, orchestrator);
+    try {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/v1/sync" + query,
+        ...(body ? { payload: body } : {}),
+      });
+      expect(response.statusCode).toBe(400);
+      expect(runs.create).not.toHaveBeenCalled();
+    } finally {
+      await app.close();
+    }
+  });
 });

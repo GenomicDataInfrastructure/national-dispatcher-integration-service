@@ -94,8 +94,8 @@ export async function registerMonitoringRoutes(
           CATALOGUE_SOURCE,
         )
       : [];
-    const hydratedEvidence = await Promise.all(
-      evidence.map((item) => withValidationFindings(item)),
+    const hydratedEvidence = evidence.map((item) =>
+      withValidationFindings(item),
     );
     const byId = new Map(
       hydratedEvidence.map((item) => [item.datasetId, item]),
@@ -103,8 +103,8 @@ export async function registerMonitoringRoutes(
     const visibleRuns = await Promise.all(
       recentRuns.slice(0, 10).map(async (run) => ({
         ...run,
-        reports: await Promise.all(
-          (run.reports ?? []).map((item) => withValidationFindings(item)),
+        reports: (run.reports ?? []).map((item) =>
+          withValidationFindings(item),
         ),
       })),
     );

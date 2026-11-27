@@ -19,23 +19,19 @@ const datasetParams = z.object({
   datasetId: z.string().min(1).max(512),
 });
 const modeQuery = z
-  .object({
-    mode: z.enum(["validate_only", "validate", "deliver"]).optional(),
-  })
+  .object({ mode: z.literal("validate_only").optional() })
   .strict();
 
-function optionsFor(
-  query: unknown,
-  body: unknown,
-): RunOptions | "validate_only" | "validate" | "deliver" | undefined {
-  const legacy = modeQuery.parse(query).mode;
+/** `?mode=validate_only` is a shortcut for `{"operationMode":"validate_only"}`. */
+function optionsFor(query: unknown, body: unknown): RunOptions {
+  const { mode } = modeQuery.parse(query);
   const options = runOptionsSchema.parse(body ?? {});
-  if (!Object.keys(options).length) return legacy;
-  if (legacy)
+  if (!mode) return options;
+  if (Object.keys(options).length)
     throw new InvalidRunOptionsError(
-      "Use either the JSON run options or the legacy mode query, not both",
+      "Use either the JSON run options or ?mode=validate_only, not both",
     );
-  return options;
+  return { operationMode: mode };
 }
 const runParams = z.object({ runId: z.string().uuid() });
 
@@ -62,12 +58,9 @@ export async function registerSyncRoutes(
   app: FastifyInstance,
   orchestrator: SyncOrchestrator,
 ) {
-  const trigger = async (
-    reply: FastifyReply,
-    mode?: "validate_only" | "validate" | "deliver" | RunOptions,
-  ) => {
+  const trigger = async (reply: FastifyReply, options: RunOptions) => {
     try {
-      const run = await orchestrator.trigger(undefined, mode);
+      const run = await orchestrator.trigger(undefined, options);
       return reply.code(202).send({
         runId: run.runId,
         mode: run.mode,

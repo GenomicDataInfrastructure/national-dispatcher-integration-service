@@ -84,15 +84,9 @@ export class SyncOrchestrator {
 
   async trigger(
     datasetId?: string,
-    requestedMode?: "validate_only" | "validate" | "deliver" | RunOptions,
+    options: RunOptions = {},
   ): Promise<SyncRun> {
-    const options: RunOptions =
-      typeof requestedMode === "object" ? requestedMode : {};
-    const mode: OperationMode =
-      options.operationMode ??
-      (requestedMode === "validate_only" || requestedMode === "validate"
-        ? "validate_only"
-        : this.operationMode);
+    const mode: OperationMode = options.operationMode ?? this.operationMode;
     if (this.active)
       throw new SyncAlreadyRunningError("A synchronization is already running");
     this.active = true;

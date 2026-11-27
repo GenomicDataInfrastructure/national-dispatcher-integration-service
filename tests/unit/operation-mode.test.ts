@@ -20,7 +20,6 @@ describe("operation modes", () => {
     "enforces %s for default runs",
     async (mode) => {
       const catalogue = {
-        assertCompatibleDatasetIds: vi.fn(),
         listDatasets: vi.fn(async () => [
           { datasetId: "invalid", rdf: "<rdf/>" },
         ]),

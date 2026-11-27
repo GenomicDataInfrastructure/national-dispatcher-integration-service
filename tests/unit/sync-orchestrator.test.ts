@@ -73,7 +73,7 @@ describe("validation-only sync", () => {
       dispatcher as any,
       validator as any,
     );
-    await orchestrator.trigger(undefined, "validate");
+    await orchestrator.trigger(undefined, { operationMode: "validate_only" });
     await vi.waitFor(() => expect(runs.finish).toHaveBeenCalled());
     expect(runs.create).toHaveBeenCalledWith(
       expect.any(String),
@@ -129,9 +129,9 @@ describe("validation-only sync", () => {
       runs as any,
       {} as any,
     );
-    await expect(orchestrator.trigger(undefined, "validate")).rejects.toThrow(
-      "METADATA_VALIDATOR_URL",
-    );
+    await expect(
+      orchestrator.trigger(undefined, { operationMode: "validate_only" }),
+    ).rejects.toThrow("METADATA_VALIDATOR_URL");
     expect(runs.create).not.toHaveBeenCalled();
   });
 });
@@ -169,7 +169,6 @@ it("delivers warnings-only datasets without counting validation failures", async
     { mode: "itb", validationType: "public" },
   );
   const catalogue: any = {
-    assertCompatibleDatasetIds: vi.fn(),
     listDatasets: vi.fn(async () => [{ datasetId: "warning", rdf: "<rdf/>" }]),
     listDeletedDatasetIds: vi.fn(async () => []),
   };
@@ -242,7 +241,6 @@ describe("in-flight Domibus deliveries", () => {
       finish: vi.fn(),
     };
     const catalogue: any = {
-      assertCompatibleDatasetIds: vi.fn(),
       listDatasets: vi.fn(async () => [
         { datasetId: "ok", rdf: "<ok/>" },
         { datasetId: "retrying", rdf: "<retrying/>" },
