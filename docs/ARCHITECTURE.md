@@ -13,7 +13,8 @@ create, update or delete call on the dispatcher, follow each message through
 Domibus to the Central Platform, and keep a durable record of what was sent so
 that nothing is sent twice and nothing is lost on a crash or timeout.
 
-For every setting mentioned here, see [CONFIGURATION.md](CONFIGURATION.md).
+For every setting mentioned here, see [CONFIGURATION.md](CONFIGURATION.md). For
+validation in detail, see [VALIDATION.md](VALIDATION.md).
 
 ## The big picture
 
@@ -47,7 +48,7 @@ flowchart LR
 Metadata enters the service only through **catalogue synchronization**. The
 service downloads the whole catalogue, works out which datasets are new, changed
 or removed, and delivers the differences. A run is started by the scheduler or
-by `POST /api/v1/sync`. There is no endpoint for pushing a single dataset's RDF.
+by `POST /api/v1/sync`.
 
 ## Main components
 
@@ -83,7 +84,10 @@ by `POST /api/v1/sync`. There is no endpoint for pushing a single dataset's RDF.
    publishers, contact points). The full dataset URI is its identity. A
    catalogue with no `dcat:Catalog`, a paginated catalogue, or a dataset without
    embedded metadata is rejected, so a partial catalogue can never cause mass
-   deletions.
+   deletions. Each dataset's RDF keeps its properties, language tags, datatypes
+   and blank-node relationships; XML formatting and ordering can differ from
+   the catalogue. Invalid IRIs in the metadata are passed on unchanged, and
+   validation may reject them.
 6. **Process each dataset**, one at a time, depending on the operation mode:
    - `validate_only`: validate and store the report. Nothing is sent.
    - `validate_and_sync`: validate first; a dataset with a `Violation` (or a
@@ -205,6 +209,7 @@ Each report stores the checksum of the RDF it checked. The dashboard shows a
 Release 8 pass/fail only when that checksum matches the delivered RDF and the
 report's profile matches `RELEASE8_VALIDATION_PROFILE`. Otherwise it shows
 "not assessed" or "outdated". Delivery success never implies compliance.
+Setup and details are in [VALIDATION.md](VALIDATION.md).
 
 ## HTTP API
 
@@ -224,10 +229,12 @@ request needs it. If no token is configured, those requests return 503; a
 wrong or missing token returns 401. GET endpoints are open, so put the service
 behind your normal access boundary if status data should be private.
 
-Common error responses: 400 invalid request or run options, 409 a sync is
-already running, 503 controls disabled or validator unavailable.
+Common error responses: 400 invalid request or run options, 404 unknown run
+or dataset, 409 a sync is already running, 503 controls disabled or validator
+unavailable. `?mode=validate_only` on a sync request is a shortcut for the body
+`{"operationMode":"validate_only"}`.
 
-Request and response examples are in the [README](../README.md#api).
+Request and response examples are in the [README](../README.md#running-a-sync).
 
 ## Data stored in PostgreSQL
 

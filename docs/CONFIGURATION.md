@@ -13,6 +13,7 @@ value stops the service with an error, rather than starting with a broken
 configuration. An empty value (`NAME=`) is treated the same as unset.
 
 For how these settings affect behaviour, see [ARCHITECTURE.md](ARCHITECTURE.md).
+Validation is described in detail in [VALIDATION.md](VALIDATION.md).
 
 ## Quick start: minimum configuration
 
@@ -28,11 +29,11 @@ This runs a delivery sync (`sync_only`, no validation) every 15 minutes.
 
 ## HTTP server
 
-| Variable            | Default   | Description                                                                                                                                                                                                                   |
-| ------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `PORT`              | `8080`    | Port to listen on (1 to 65535).                                                                                                                                                                                               |
-| `HOST`              | `0.0.0.0` | Interface to bind to.                                                                                                                                                                                                         |
-| `CONTROL_API_TOKEN` | unset     | Bearer token required for every non-GET request (starting syncs). Minimum 32 characters. When unset, those requests return 503 and the dashboard is read-only. It is separate from the dispatcher key and redacted from logs. |
+| Variable            | Default   | Description                                                                                                                                                                                                                       |
+| ------------------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PORT`              | `8080`    | Port to listen on (1 to 65535).                                                                                                                                                                                                   |
+| `HOST`              | `0.0.0.0` | Interface to bind to.                                                                                                                                                                                                             |
+| `CONTROL_API_TOKEN` | unset     | Bearer token required for every non-GET request (starting syncs). Minimum 32 characters. When unset, those requests return 503 and syncs run only on the schedule. It is separate from the dispatcher key and redacted from logs. |
 
 ## National Dispatcher
 
@@ -74,9 +75,6 @@ The scheduler supports a limited cron syntax per field: `*`, `*/n`, a single
 number, or a comma-separated list of those (for example `0,30 * * * *`).
 Ranges such as `1-5` are **not** supported.
 
-`METADATA_SOURCES_JSON` was removed. If it is still set, startup fails with a
-message asking you to use `DATASET_CATALOGUE_RDF_URL` instead.
-
 ## Operation mode
 
 | Variable         | Default     | Description                                                         |
@@ -94,8 +92,8 @@ Any mode other than `sync_only` needs a working validator configuration
 (below); otherwise the service refuses to start.
 
 A single run can use a different mode through the API request body
-(`{"operationMode": "validate_only"}`). That does not change the configured
-default.
+(`{"operationMode": "validate_only"}`, or the shortcut `?mode=validate_only`).
+That does not change the configured default.
 
 ## Metadata validation
 
@@ -144,7 +142,7 @@ METADATA_VALIDATOR_VALIDATION_TYPE=auto
 Metadata (not dataset files) is sent to this service. No dispatcher key or
 control token is sent.
 
-## Per-run overrides
+## Per-run options
 
 `POST /api/v1/sync` and `POST /api/v1/sync/dataset/:datasetId` accept an
 optional JSON body that applies to that run only:
@@ -158,17 +156,19 @@ optional JSON body that applies to that run only:
 | `language`          | Language tag sent to the catalogue, e.g. `en-GB` (default), `fr-LU`             |
 
 Validation fields are rejected together with `sync_only`. URLs, file paths,
-credentials and limits can never be set per request.
+credentials and limits can never be set per request. `?mode=validate_only` is a
+shortcut for `{"operationMode": "validate_only"}` and cannot be combined with a
+body.
 
 ## Fixed limits (not configurable)
 
-| Limit                           | Value                             |
-| ------------------------------- | --------------------------------- |
-| Request body size (RDF uploads) | 10 MB                             |
-| Local validator report size     | 10 MB                             |
-| Catalogue download timeout      | 30 seconds                        |
-| Catalogue `Accept-Language`     | `en-GB` unless overridden per run |
-| PostgreSQL connection pool      | 10 connections                    |
+| Limit                       | Value                             |
+| --------------------------- | --------------------------------- |
+| Request body size           | 1 MB                              |
+| Local validator report size | 10 MB                             |
+| Catalogue download timeout  | 30 seconds                        |
+| Catalogue `Accept-Language` | `en-GB` unless overridden per run |
+| PostgreSQL connection pool  | 10 connections                    |
 
 ## Startup checks
 
@@ -182,5 +182,4 @@ The service refuses to start when:
   without `METADATA_VALIDATOR_SHAPES_FILE`, or `itb` without
   `METADATA_VALIDATOR_URL`.
 - `SYNC_ENABLED` is on and `SYNC_SCHEDULE` is not a five-field cron expression.
-- `METADATA_SOURCES_JSON` is set.
 - PostgreSQL is unreachable or a migration fails.

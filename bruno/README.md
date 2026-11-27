@@ -3,33 +3,41 @@
 
 # Bruno collection
 
-This collection contains health, readiness, and source-to-dispatcher
-synchronization requests, plus a read-only direct National Dispatcher lookup
-by Domibus message ID. Other direct National Dispatcher
-requests are maintained outside this repository at
-`../national-dispatcher-integration-service-operator-collections/`.
+Requests for checking a running service: health, readiness, starting a sync,
+following a run and reading one dataset's delivery state.
 
-## Test source-to-dispatcher synchronization
+| Request                | Does                                                            |
+| ---------------------- | --------------------------------------------------------------- |
+| **Health**             | `GET /health`: the process is up.                               |
+| **Readiness**          | `GET /ready`: PostgreSQL is reachable.                          |
+| **Run Sync Only**      | Full `sync_only` sync of the catalogue, including deletions.    |
+| **Sync One Dataset**   | `sync_only` sync of the dataset in `datasetId`. No deletions.   |
+| **Get Sync Run**       | Status, counters and reports of the last started run (`runId`). |
+| **Get Dataset Status** | Stored delivery state of the dataset in `datasetId`.            |
 
-Configure the server's `DISPATCHER_URL`, `DISPATCHER_API_KEY`, source connection,
-PostgreSQL connection and `CONTROL_API_TOKEN`, then start it with `npm run dev`.
-Open this collection in Bruno, copy `environments/Local.example.bru` to
-`environments/Local.bru`, and replace the placeholders with local values. Set
-the `CONTROL_API_TOKEN` and `DISPATCHER_API_KEY` secret values in Bruno.
+The sync requests write to the National Dispatcher and need the control token.
+Send requests one at a time; running the whole collection starts a full sync.
+
+## Setup
+
+1. Configure and start the service (`npm run dev`); see the
+   [project README](../README.md#quick-start).
+2. Open this directory as a collection in Bruno.
+3. Copy `environments/Local.example.bru` to `environments/Local.bru` (ignored by
+   Git) and select the **Local** environment.
+4. Set the `CONTROL_API_TOKEN` secret to the service's token, and `datasetId`
+   to a URL-encoded catalogue dataset URI, for example
+   `https%3A%2F%2Fcatalogue.example%2Fdataset%2F1`.
+
+## Checking one dataset end to end
 
 1. Send **Health** and **Readiness**.
-2. Send **sync / Sync One Dataset**. Its JSON body selects `sync_only`, without
-   validator options. Expect HTTP 202 and `mode: sync_only`. The request saves
-   `runId` automatically.
-3. Repeat **sync / Get Sync Run** until `status` is `completed` or `failed`.
-   Successful delivery requires `datasetsFailed: 0` and a created/updated count.
-   Inspect `reports` and `error` if it fails. A skipped dataset was already
-   delivered unchanged and does not produce another dispatcher write.
-4. Inspect persisted delivery identifiers and status in the read-only dashboard
-   or `GET /api/v1/monitoring`. Confirm receipt in the dispatcher's own
-   tracking/logs when verifying the remote system independently.
-
-**Sync One Dataset** processes only the selected source dataset. **Run Sync Only**
-processes all datasets from the default source and reconciles deletions. Both use
-`sync_only`, save `runId` automatically, and require the operator token. Run
-requests individually; running the whole collection starts a full sync.
+2. Send **Sync One Dataset**. Expect `202` and `mode: sync_only`; the run ID is
+   saved as `runId`.
+3. Repeat **Get Sync Run** until `status` is `completed` or `failed`. A clean
+   delivery has `datasetsFailed: 0` and a created or updated count; a skipped
+   dataset was already delivered unchanged. Otherwise inspect `reports` and
+   `error`.
+4. Send **Get Dataset Status** to see the stored status, Domibus message ID and
+   Central Platform object ID, or open the dashboard. To confirm receipt
+   independently, check the dispatcher's own tracking.

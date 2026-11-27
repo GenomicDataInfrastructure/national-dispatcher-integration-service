@@ -2,8 +2,9 @@
 
 Source: [European Commission HealthDCAT-AP Release 8](https://data.health.europa.eu/healthdcat-ap/releases/release-8/).
 Copyright European Union; CC-BY-4.0. Original resources, source URLs and checksums
-are preserved in `upstream/manifest.json`. `upstream/VALIDATION-STATUS.md` records
-the original compatibility failure; it is historical documentation.
+are preserved in `upstream/manifest.json`. `upstream/VALIDATION-STATUS.md`
+describes why the unmodified upstream bundle fails under pySHACL, which the
+correction below addresses.
 
 Build from the project root with the pinned Python environment:
 
@@ -57,7 +58,7 @@ dataset; use it only when that is intentional.
 Regression tests exercise all three bundles with a synthetic complete fixture,
 then remove titles and introduce invalid access rights, controlled vocabulary
 values and structured-data declarations. Warnings remain visible and follow the
-service's existing severity policy. Structured findings use report-level
+service's [severity policy](../../docs/VALIDATION.md#pass-and-fail). Structured findings use report-level
 `sh:result` entries. Nested `sh:detail` diagnostics remain in the text report;
 a diagnostic Violation underneath a Warning does not independently block a
 dataset. These fixtures are engineering regressions,

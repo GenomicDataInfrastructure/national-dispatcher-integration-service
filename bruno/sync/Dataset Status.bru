@@ -1,0 +1,26 @@
+meta {
+  name: Get Dataset Status
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/v1/datasets/{{datasetId}}/status
+  body: none
+  auth: none
+}
+
+tests {
+  test("delivery state returned", function () {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody().sourceSystem).to.equal("catalogue");
+    expect(res.getBody().status).to.be.a("string");
+  });
+}
+
+docs {
+  Reads the stored delivery state of the dataset in datasetId (a URL-encoded
+  dataset URI): status, Domibus message ID, Central Platform object ID, retries
+  and last error. Returns 404 when nothing is recorded for that dataset.
+  Read-only; needs no token.
+}

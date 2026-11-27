@@ -36,8 +36,9 @@ tests {
 }
 
 docs {
-  Set datasetId in the Local environment to an existing source dataset ID.
-  Fetches RDF from the configured source and synchronizes it to the dispatcher.
+  Set datasetId in the Local environment to a catalogue dataset URI,
+  URL-encoded (for example https%3A%2F%2Fcatalogue.example%2Fdataset%2F1).
+  Extracts that dataset from the catalogue and synchronizes it to the dispatcher.
   Saves runId for Get Sync Run. Unchanged delivered datasets are skipped.
   To synchronize all datasets, remove /dataset/{{datasetId}} from the URL.
 }
